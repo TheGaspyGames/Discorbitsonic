@@ -1,10 +1,10 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 
-export const data = new SlashCommandBuilder()
+const data = new SlashCommandBuilder()
   .setName("ping")
   .setDescription("Muestra la latencia del bot.");
 
-export async function execute(interaction) {
+async function execute(interaction) {
   const latency = Date.now() - interaction.createdTimestamp;
   const apiLatency = Math.round(interaction.client.ws.ping);
 
@@ -15,3 +15,9 @@ export async function execute(interaction) {
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
+
+// 👇 Export en formato compatible con tu loader
+export default {
+  data,
+  execute
+};
