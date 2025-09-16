@@ -5,14 +5,14 @@ let LOG_CHANNEL_ID = null;
 let COMMAND_LOGGING_ENABLED = false;
 let DM_MONITORING_ENABLED = false;
 
-export const data = new SlashCommandBuilder()
+const data = new SlashCommandBuilder()
   .setName("logsetup")
   .setDescription("Configura el sistema de logs.")
   .addChannelOption(option => option.setName("canal").setDescription("Canal para logs").setRequired(true))
   .addBooleanOption(option => option.setName("command_logging").setDescription("Activar log de comandos"))
   .addBooleanOption(option => option.setName("dm_monitoring").setDescription("Activar log de DMs"));
 
-export async function execute(interaction) {
+async function execute(interaction) {
   if (!config.AUTHORIZED_USER_IDS.includes(interaction.user.id.toString())) {
     return interaction.reply({ content: "❌ No tienes permisos.", ephemeral: true });
   }
@@ -33,3 +33,8 @@ export async function execute(interaction) {
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
+
+export default {
+  data,
+  execute
+};
