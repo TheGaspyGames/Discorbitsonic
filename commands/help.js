@@ -1,11 +1,11 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import config from "../config.json" assert { type: "json" };
 
-export const data = new SlashCommandBuilder()
+const data = new SlashCommandBuilder()
   .setName("help")
   .setDescription("Muestra información sobre los comandos disponibles.");
 
-export async function execute(interaction) {
+async function execute(interaction) {
   const embed = new EmbedBuilder()
     .setTitle("📋 Comandos Disponibles")
     .setColor("Blue")
@@ -24,3 +24,8 @@ export async function execute(interaction) {
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
+
+export default {
+  data,
+  execute
+};
