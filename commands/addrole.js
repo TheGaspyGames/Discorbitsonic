@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
 import config from "../config.json" assert { type: "json" };
 
-export const data = new SlashCommandBuilder()
+const data = new SlashCommandBuilder()
   .setName("addrole")
   .setDescription("Añade un rol a los miembros que no lo tienen.")
   .addRoleOption(option =>
@@ -9,7 +9,7 @@ export const data = new SlashCommandBuilder()
   )
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles);
 
-export async function execute(interaction) {
+async function execute(interaction) {
   if (!config.AUTHORIZED_USER_IDS.includes(interaction.user.id.toString())) {
     return interaction.reply({ content: "❌ No tienes permisos.", ephemeral: true });
   }
@@ -21,10 +21,23 @@ export async function execute(interaction) {
   let count = 0;
   for (const member of interaction.guild.members.cache.values()) {
     if (!member.user.bot && !member.roles.cache.has(role.id)) {
-      await member.roles.add(role).catch(() => {});
-      count++;
+      try {
+        await member.roles.add(role);
+        count++;
+      } catch {
+        // Silenciar errores individuales (por ejemplo, falta de permisos)
+      }
     }
   }
 
-  await interaction.followUp({ content: `✅ Rol **${role.name}** añadido a ${count} miembros.`, ephemeral: true });
+  await interaction.followUp({
+    content: `✅ Rol **${role.name}** añadido a ${count} miembros.`,
+    ephemeral: true
+  });
 }
+
+// 👇 Export en formato compatible con tu loader dinámico
+export default {
+  data,
+  execute
+};
