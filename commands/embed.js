@@ -1,17 +1,29 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import config from "../config.json" assert { type: "json" };
 
-export const data = new SlashCommandBuilder()
+const data = new SlashCommandBuilder()
   .setName("embed")
   .setDescription("Crea un embed personalizado.")
-  .addChannelOption(option => option.setName("canal").setDescription("Canal destino").setRequired(true))
-  .addStringOption(option => option.setName("contenido").setDescription("Contenido del embed").setRequired(true))
-  .addStringOption(option => option.setName("titulo").setDescription("Título"))
-  .addStringOption(option => option.setName("color").setDescription("Color hex (#000000)"))
-  .addStringOption(option => option.setName("footer").setDescription("Texto de pie"))
-  .addStringOption(option => option.setName("autor").setDescription("Autor"));
+  .addChannelOption(option =>
+    option.setName("canal").setDescription("Canal destino").setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("contenido").setDescription("Contenido del embed").setRequired(true)
+  )
+  .addStringOption(option =>
+    option.setName("titulo").setDescription("Título")
+  )
+  .addStringOption(option =>
+    option.setName("color").setDescription("Color hex (#000000)")
+  )
+  .addStringOption(option =>
+    option.setName("footer").setDescription("Texto de pie")
+  )
+  .addStringOption(option =>
+    option.setName("autor").setDescription("Autor")
+  );
 
-export async function execute(interaction) {
+async function execute(interaction) {
   if (!config.AUTHORIZED_USER_IDS.includes(interaction.user.id.toString())) {
     return interaction.reply({ content: "❌ No tienes permisos.", ephemeral: true });
   }
@@ -32,5 +44,13 @@ export async function execute(interaction) {
   if (autor) embed.setAuthor({ name: autor });
 
   await canal.send({ embeds: [embed] });
-  await interaction.reply({ content: `✅ Embed enviado a ${canal}`, ephemeral: true });
+  await interaction.reply({
+    content: `✅ Embed enviado a ${canal}`,
+    ephemeral: true
+  });
 }
+
+export default {
+  data,
+  execute
+};
