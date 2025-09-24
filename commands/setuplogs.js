@@ -60,21 +60,22 @@ export default {
     client.on("roleDelete", r => sendLogMessage(client, "🗑 Rol Eliminado", `Nombre: ${r.name}`, Colors.Red, logChannel.id));
 
     // Miembros
+    client.on("guildMemberAdd", m => sendLogMessage(client, "✅ Miembro Entró", `Usuario: ${m.user.tag}`, Colors.Green, logChannel.id));
+    client.on("guildMemberRemove", m => sendLogMessage(client, "❌ Miembro Salió", `Usuario: ${m.user.tag}`, Colors.Red, logChannel.id));
+
     client.on("guildMemberUpdate", (oldM, newM) => {
       const changes = [];
       if (oldM.nickname !== newM.nickname) changes.push(`Nick: \`${oldM.nickname ?? oldM.user.username}\` → \`${newM.nickname ?? newM.user.username}\``);
       if (oldM.roles.cache.size !== newM.roles.cache.size) changes.push("Roles modificados");
       if (changes.length) sendLogMessage(client, "✏️ Miembro Actualizado", `${newM.user.tag}\n` + changes.join("\n"), Colors.Yellow, logChannel.id);
     });
+
     client.on("userUpdate", (oldU, newU) => {
       if (oldU.avatar !== newU.avatar)
         sendLogMessage(client, "🖼 Avatar Cambiado", `Usuario: ${newU.tag}\nNuevo Avatar: ${newU.displayAvatarURL({ dynamic: true })}`, Colors.Purple, logChannel.id);
       if (oldU.username !== newU.username)
         sendLogMessage(client, "✏️ Username Cambiado", `Usuario: ${oldU.tag}\nNuevo username: ${newU.username}`, Colors.Yellow, logChannel.id);
     });
-
-    client.on("guildMemberAdd", m => sendLogMessage(client, "✅ Miembro Entró", `Usuario: ${m.user.tag}`, Colors.Green, logChannel.id));
-    client.on("guildMemberRemove", m => sendLogMessage(client, "❌ Miembro Salió", `Usuario: ${m.user.tag}`, Colors.Red, logChannel.id));
 
     client.on("messageDelete", m => {
       if (m.partial) return;
@@ -95,6 +96,6 @@ export default {
       if (changes.length) sendLogMessage(client, "🏰 Servidor Actualizado", changes.join("\n"), Colors.Yellow, logChannel.id);
     });
 
-    console.log(`[LOGS] Logs profesionales que cuestan 500 euros activados en ${guild.name}, canal: ${logChannel.name}`);
+    console.log(`[LOGS] Logs profesionales de 500 euros activados en ${guild.name}, canal: ${logChannel.name}`);
   }
 };
