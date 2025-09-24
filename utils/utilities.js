@@ -1,34 +1,22 @@
-import { EmbedBuilder, Colors } from "discord.js";
-import config from "../config.json" with { type: "json" };
+import { EmbedBuilder, Colors, ActivityType } from "discord.js";
+import fs from "fs";
 import { configManager } from "./configManager.js";
 
-/**
- * Calculates similarity between two strings using a simple algorithm
- */
+/** ----------------- UTILITIES ----------------- **/
+
 export function calculateSimilarity(s1, s2) {
   const longer = s1.length > s2.length ? s1 : s2;
   const shorter = s1.length > s2.length ? s2 : s1;
-  
   if (longer.length === 0) return 1.0;
-  
   const distance = levenshteinDistance(longer, shorter);
   return (longer.length - distance) / longer.length;
 }
 
-/**
- * Helper function to calculate Levenshtein distance
- */
 function levenshteinDistance(str1, str2) {
   const matrix = [];
-  
-  for (let i = 0; i <= str2.length; i++) {
-    matrix[i] = [i];
-  }
-  
-  for (let j = 0; j <= str1.length; j++) {
-    matrix[0][j] = j;
-  }
-  
+  for (let i = 0; i <= str2.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= str1.length; j++) matrix[0][j] = j;
+
   for (let i = 1; i <= str2.length; i++) {
     for (let j = 1; j <= str1.length; j++) {
       if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -42,150 +30,170 @@ function levenshteinDistance(str1, str2) {
       }
     }
   }
-  
   return matrix[str2.length][str1.length];
 }
 
-/**
- * Splits a long message into multiple chunks to respect Discord's character limit
- */
 export function splitMessage(text, maxLength = 2000) {
   const chunks = [];
-  let remainingText = text;
-  
-  while (remainingText.length > maxLength) {
-    let splitPoint = remainingText.lastIndexOf('\n', maxLength);
-    if (splitPoint === -1) {
-      splitPoint = maxLength;
-    }
-    chunks.push(remainingText.substring(0, splitPoint));
-    remainingText = remainingText.substring(splitPoint).trimStart();
+  let remaining = text;
+  while (remaining.length > maxLength) {
+    let splitPoint = remaining.lastIndexOf('\n', maxLength);
+    if (splitPoint === -1) splitPoint = maxLength;
+    chunks.push(remaining.substring(0, splitPoint));
+    remaining = remaining.substring(splitPoint).trimStart();
   }
-  
-  if (remainingText.length > 0) {
-    chunks.push(remainingText);
-  }
-  
+  if (remaining.length > 0) chunks.push(remaining);
   return chunks;
 }
 
-/**
- * Filters out IP addresses from text for privacy
- */
 export function filterIPAddresses(text) {
-  // Remove IPv4 addresses (xxx.xxx.xxx.xxx pattern)
   const ipv4Pattern = /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g;
   return text.replace(ipv4Pattern, '[IP_FILTERED]');
 }
 
-/**
- * Checks if user is authorized to use admin commands
- */
 export function isAuthorized(interaction) {
   return configManager.isAuthorized(interaction.user.id);
 }
 
-/**
- * Sends an error report to the log channel
- */
-export async function sendErrorReport(client, errorMessage, commandName = null, userId = null) {
-  const filteredMessage = filterIPAddresses(errorMessage);
-  
-  const embed = new EmbedBuilder()
-    .setTitle("🚨 Error Report")
-    .setColor(Colors.Red)
-    .setDescription(`**Error:** ${filteredMessage}`)
-    .setTimestamp();
-  
-  if (commandName) {
-    embed.addFields({ name: "Command", value: commandName, inline: true });
-  }
-  
-  if (userId) {
-    embed.addFields({ name: "User ID", value: userId.toString(), inline: true });
-  }
-  
+/** ----------------- LOGGING ----------------- **/
+
+export async function sendErrorReport(client, errorMessage, commandName = null, user = null, interaction = null) {
   try {
     const logChannelId = configManager.get('LOG_CHANNEL_ID');
-    if (logChannelId) {
-      const logChannel = client.channels.cache.get(logChannelId);
-      if (logChannel) {
-        await logChannel.send({ embeds: [embed] });
-      }
-    }
-  } catch (error) {
-    console.log(`Failed to send error report to log channel: ${error}`);
+    if (!logChannelId) return;
+
+    const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+    if (!logChannel) return;
+
+    let msgContent = interaction?.content ?? "N/A";
+    let channelName = interaction?.channel?.name ?? "N/A";
+
+    const embed = new EmbedBuilder()
+      .setTitle("🚨 Error Report")
+      .setColor(Colors.Red)
+      .setDescription(filterIPAddresses(errorMessage).slice(0, 2048))
+      .setTimestamp()
+      .addFields({ name: "📌 Canal", value: channelName, inline: true });
+
+    if (commandName) embed.addFields({ name: "🔧 Comando", value: commandName, inline: true });
+    if (user) embed.addFields({ name: "👤 Usuario", value: `${user.tag} (\`${user.id}\`)`, inline: true });
+    if (msgContent !== "N/A") embed.addFields({ name: "💬 Mensaje original", value: filterIPAddresses(msgContent).slice(0, 1024), inline: false });
+
+    await logChannel.send({ embeds: [embed] });
+  } catch (err) {
+    console.log(`❌ Failed to send error report: ${err}`);
   }
 }
 
-/**
- * Sends a log message to the designated log channel
- */
-export async function sendLogMessage(client, title, message, color = Colors.Blue) {
+export async function sendCommandLog(client, commandName, user, interaction = null, additionalInfo = null) {
+  if (!configManager.get('COMMAND_LOGGING_ENABLED')) return;
+
   try {
     const logChannelId = configManager.get('LOG_CHANNEL_ID');
-    if (logChannelId) {
-      const logChannel = client.channels.cache.get(logChannelId);
-      if (logChannel) {
-        const filteredMessage = filterIPAddresses(message);
-        const embed = new EmbedBuilder()
-          .setTitle(title)
-          .setDescription(filteredMessage)
-          .setColor(color)
-          .setTimestamp();
-        
-        await logChannel.send({ embeds: [embed] });
-      }
-    }
+    if (!logChannelId) return;
+
+    const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+    if (!logChannel) return;
+
+    let messageContent = interaction?.content ?? "[Slash command / interaction]";
+    let channelName = interaction?.channel?.name ?? "Desconocido";
+
+    const embed = new EmbedBuilder()
+      .setTitle("⚡ Comando Usado")
+      .setColor(Colors.Green)
+      .setTimestamp()
+      .addFields(
+        { name: "👤 Usuario", value: `${user.tag} (\`${user.id}\`)`, inline: true },
+        { name: "🔧 Comando", value: `\`/${commandName}\``, inline: true },
+        { name: "💬 Contenido del mensaje", value: filterIPAddresses(messageContent).slice(0, 1024), inline: false },
+        { name: "📌 Canal", value: channelName, inline: true }
+      );
+
+    if (additionalInfo) embed.addFields({ name: "📝 Información Adicional", value: additionalInfo, inline: false });
+
+    await logChannel.send({ embeds: [embed] });
   } catch (error) {
-    console.log(`Failed to send log message: ${error}`);
+    console.log(`❌ Failed to send command log: ${error}`);
   }
 }
 
-/**
- * Sends a command usage log to the designated log channel when enabled
- */
-export async function sendCommandLog(client, commandName, user, additionalInfo = null) {
-  if (!configManager.get('COMMAND_LOGGING_ENABLED')) {
-    return;
-  }
-  
+export async function sendLogMessage(client, title, message, color = Colors.Blue, channelId = null) {
   try {
-    const logChannelId = configManager.get('LOG_CHANNEL_ID');
-    if (logChannelId) {
-      const logChannel = client.channels.cache.get(logChannelId);
-      if (logChannel) {
-        const embed = new EmbedBuilder()
-          .setTitle("⚡ Comando Usado")
-          .setColor(Colors.Blue)
-          .setTimestamp()
-          .addFields(
-            { name: "👤 Usuario", value: `${user} (${user.username})\nID: \`${user.id}\``, inline: true },
-            { name: "🔧 Comando", value: `\`/${commandName}\``, inline: true }
-          );
-        
-        if (additionalInfo) {
-          embed.addFields({ name: "📝 Información Adicional", value: additionalInfo, inline: false });
-        }
-        
-        await logChannel.send({ embeds: [embed] });
-      }
-    }
+    const logChannelId = channelId ?? configManager.get('LOG_CHANNEL_ID');
+    if (!logChannelId) return;
+
+    const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+    if (!logChannel) return;
+
+    const filteredMessage = filterIPAddresses(message);
+
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setColor(color)
+      .setDescription(filteredMessage)
+      .setTimestamp()
+      .addFields({ name: "📌 Canal", value: logChannel.name ?? "Desconocido", inline: true });
+
+    await logChannel.send({ embeds: [embed] });
   } catch (error) {
-    console.log(`Failed to send command log: ${error}`);
+    console.log(`❌ Failed to send log message: ${error}`);
   }
 }
 
-/**
- * Sets bot activity to "playing geometry dash"
- */
-export async function setLiveActivity(client) {
+/** ----------------- ACTIVITY / RPC CLONER ----------------- **/
+
+export async function cloneUserActivity(client, guild, ownerId) {
   try {
-    await client.user.setActivity("geometry dash", { type: "PLAYING" });
-    console.log('Activity set: playing geometry dash');
+    const owner = await guild.members.fetch(ownerId).catch(() => null);
+    if (!owner) return;
+
+    const activity = owner.presence?.activities?.[0];
+    if (!activity) return;
+
+    let activityOptions = {};
+    switch (activity.type) {
+      case ActivityType.Playing:
+        activityOptions = { name: activity.name, type: ActivityType.Playing };
+        break;
+      case ActivityType.Listening:
+        activityOptions = { name: activity.details ?? activity.name, type: ActivityType.Listening };
+        break;
+      case ActivityType.Streaming:
+        activityOptions = { name: activity.name, type: ActivityType.Streaming, url: activity.url };
+        break;
+      case ActivityType.Watching:
+        activityOptions = { name: activity.name, type: ActivityType.Watching };
+        break;
+      default:
+        activityOptions = { name: activity.name, type: ActivityType.Playing };
+    }
+
+    await client.user.setActivity(activityOptions);
   } catch (error) {
-    console.log(`Error updating activity: ${error}`);
+    console.log(`❌ Failed to clone user activity: ${error}`);
+    await sendErrorReport(client, `Error clonando actividad: ${error}`);
+  }
+}
+
+export async function setLiveActivity(client, defaultActivity = "geometry dash") {
+  try {
+    await client.user.setActivity(defaultActivity, { type: ActivityType.Playing });
+    console.log(`Activity set: playing ${defaultActivity}`);
+  } catch (error) {
+    console.log(`❌ Error updating activity: ${error}`);
     await sendErrorReport(client, `Error updating live activity: ${error}`);
   }
 }
 
+/** ----------------- AUTO-UPDATE ACTIVITY ----------------- **/
+
+export function autoCloneActivity(client, guild, ownerId, defaultActivity = "geometry dash") {
+  setInterval(async () => {
+    const owner = await guild.members.fetch(ownerId).catch(() => null);
+    if (owner?.presence?.activities?.[0]) {
+      await cloneUserActivity(client, guild, ownerId);
+    } else {
+      await setLiveActivity(client, defaultActivity);
+    }
+  }, 5000); // cada 5 segundos
+}
