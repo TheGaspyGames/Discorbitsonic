@@ -1,5 +1,4 @@
 import { EmbedBuilder, Colors, ActivityType } from "discord.js";
-import fs from "fs";
 import { configManager } from "./configManager.js";
 
 /** ----------------- UTILITIES ----------------- **/
@@ -51,8 +50,8 @@ export function filterIPAddresses(text) {
   return text.replace(ipv4Pattern, '[IP_FILTERED]');
 }
 
-export function isAuthorized(interaction) {
-  return configManager.isAuthorized(interaction.user.id);
+export function isAuthorized(userId) {
+  return configManager.isAuthorized(userId);
 }
 
 /** ----------------- LOGGING ----------------- **/
@@ -61,23 +60,19 @@ export async function sendErrorReport(client, errorMessage, commandName = null, 
   try {
     const logChannelId = configManager.get('LOG_CHANNEL_ID');
     if (!logChannelId) return;
-
     const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
     if (!logChannel) return;
-
-    let msgContent = interaction?.content ?? "N/A";
-    let channelName = interaction?.channel?.name ?? "N/A";
 
     const embed = new EmbedBuilder()
       .setTitle("🚨 Error Report")
       .setColor(Colors.Red)
       .setDescription(filterIPAddresses(errorMessage).slice(0, 2048))
       .setTimestamp()
-      .addFields({ name: "📌 Canal", value: channelName, inline: true });
+      .addFields({ name: "📌 Canal", value: interaction?.channel?.name ?? "N/A", inline: true });
 
     if (commandName) embed.addFields({ name: "🔧 Comando", value: commandName, inline: true });
     if (user) embed.addFields({ name: "👤 Usuario", value: `${user.tag} (\`${user.id}\`)`, inline: true });
-    if (msgContent !== "N/A") embed.addFields({ name: "💬 Mensaje original", value: filterIPAddresses(msgContent).slice(0, 1024), inline: false });
+    if (interaction?.content) embed.addFields({ name: "💬 Mensaje original", value: filterIPAddresses(interaction.content).slice(0, 1024), inline: false });
 
     await logChannel.send({ embeds: [embed] });
   } catch (err) {
@@ -91,12 +86,8 @@ export async function sendCommandLog(client, commandName, user, interaction = nu
   try {
     const logChannelId = configManager.get('LOG_CHANNEL_ID');
     if (!logChannelId) return;
-
     const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
     if (!logChannel) return;
-
-    let messageContent = interaction?.content ?? "[Slash command / interaction]";
-    let channelName = interaction?.channel?.name ?? "Desconocido";
 
     const embed = new EmbedBuilder()
       .setTitle("⚡ Comando Usado")
@@ -105,68 +96,53 @@ export async function sendCommandLog(client, commandName, user, interaction = nu
       .addFields(
         { name: "👤 Usuario", value: `${user.tag} (\`${user.id}\`)`, inline: true },
         { name: "🔧 Comando", value: `\`/${commandName}\``, inline: true },
-        { name: "💬 Contenido del mensaje", value: filterIPAddresses(messageContent).slice(0, 1024), inline: false },
-        { name: "📌 Canal", value: channelName, inline: true }
+        { name: "💬 Contenido del mensaje", value: filterIPAddresses(interaction?.content ?? "[Slash command]").slice(0, 1024), inline: false },
+        { name: "📌 Canal", value: interaction?.channel?.name ?? "Desconocido", inline: true }
       );
 
     if (additionalInfo) embed.addFields({ name: "📝 Información Adicional", value: additionalInfo, inline: false });
-
     await logChannel.send({ embeds: [embed] });
   } catch (error) {
     console.log(`❌ Failed to send command log: ${error}`);
   }
 }
 
-export async function sendLogMessage(client, title, message, color = Colors.Blue, channelId = null) {
+// Nuevo logging de setup / info / eventos
+export async function sendSetupLog(client, title, message, color = Colors.Blue, channelId = null) {
   try {
-    const logChannelId = channelId ?? configManager.get('LOG_CHANNEL_ID');
+    const logChannelId = channelId ?? configManager.get('SETUP_LOG_CHANNEL_ID');
     if (!logChannelId) return;
-
     const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
     if (!logChannel) return;
-
-    const filteredMessage = filterIPAddresses(message);
 
     const embed = new EmbedBuilder()
       .setTitle(title)
       .setColor(color)
-      .setDescription(filteredMessage)
+      .setDescription(filterIPAddresses(message))
       .setTimestamp()
       .addFields({ name: "📌 Canal", value: logChannel.name ?? "Desconocido", inline: true });
 
     await logChannel.send({ embeds: [embed] });
   } catch (error) {
-    console.log(`❌ Failed to send log message: ${error}`);
+    console.log(`❌ Failed to send setup log: ${error}`);
   }
 }
 
-/** ----------------- ACTIVITY / RPC CLONER ----------------- **/
+/** ----------------- ACTIVITY ----------------- **/
 
 export async function cloneUserActivity(client, guild, ownerId) {
   try {
     const owner = await guild.members.fetch(ownerId).catch(() => null);
     if (!owner) return;
-
     const activity = owner.presence?.activities?.[0];
     if (!activity) return;
 
-    let activityOptions = {};
-    switch (activity.type) {
-      case ActivityType.Playing:
-        activityOptions = { name: activity.name, type: ActivityType.Playing };
-        break;
-      case ActivityType.Listening:
-        activityOptions = { name: activity.details ?? activity.name, type: ActivityType.Listening };
-        break;
-      case ActivityType.Streaming:
-        activityOptions = { name: activity.name, type: ActivityType.Streaming, url: activity.url };
-        break;
-      case ActivityType.Watching:
-        activityOptions = { name: activity.name, type: ActivityType.Watching };
-        break;
-      default:
-        activityOptions = { name: activity.name, type: ActivityType.Playing };
-    }
+    const activityOptions = {
+      [ActivityType.Playing]: { name: activity.name, type: ActivityType.Playing },
+      [ActivityType.Listening]: { name: activity.details ?? activity.name, type: ActivityType.Listening },
+      [ActivityType.Streaming]: { name: activity.name, type: ActivityType.Streaming, url: activity.url },
+      [ActivityType.Watching]: { name: activity.name, type: ActivityType.Watching },
+    }[activity.type] ?? { name: activity.name, type: ActivityType.Playing };
 
     await client.user.setActivity(activityOptions);
   } catch (error) {
@@ -185,8 +161,6 @@ export async function setLiveActivity(client, defaultActivity = "geometry dash")
   }
 }
 
-/** ----------------- AUTO-UPDATE ACTIVITY ----------------- **/
-
 export function autoCloneActivity(client, guild, ownerId, defaultActivity = "geometry dash") {
   setInterval(async () => {
     const owner = await guild.members.fetch(ownerId).catch(() => null);
@@ -195,5 +169,5 @@ export function autoCloneActivity(client, guild, ownerId, defaultActivity = "geo
     } else {
       await setLiveActivity(client, defaultActivity);
     }
-  }, 5000); // cada 5 segundos
+  }, 5000);
 }
