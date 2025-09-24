@@ -1,23 +1,26 @@
 import { SlashCommandBuilder } from "discord.js";
-import { sendCommandLog } from "../utils/utilities.js";
-
-const AUTHORIZED_USER_ID = "684395420004253729"; // Solo este usuario puede reiniciar
+import { sendSetupLog } from "../utils/utilities.js";
 
 const data = new SlashCommandBuilder()
   .setName("restart")
-  .setDescription("Reinicia el bot (solo el admin autorizado).");
+  .setDescription("Reinicia el bot. Solo el propietario puede usarlo.");
 
 async function execute(interaction) {
-  if (interaction.user.id !== AUTHORIZED_USER_ID) {
-    return interaction.reply({ content: "❌ No estás autorizado para usar este comando.", ephemeral: true });
+  const OWNER_ID = "684395420004253729"; // tu ID
+  if (interaction.user.id !== OWNER_ID) {
+    return interaction.reply({ content: "❌ No tienes permisos para ejecutar este comando.", ephemeral: true });
   }
 
-  await sendCommandLog(interaction.client, "restart", interaction.user);
+  await interaction.reply({ content: "🔄 Reiniciando bot...", ephemeral: true });
 
-  await interaction.reply({ content: "🔄 Reiniciando el bot...", ephemeral: true });
+  // Log del reinicio
+  await sendSetupLog(interaction.client, "🔄 Reinicio de Bot", `Reinicio solicitado por ${interaction.user.tag} (\`${interaction.user.id}\`)`);
 
-  console.log("🔄 Reiniciando por comando autorizado...");
-  process.exit(0); // PM2 o tu gestor de procesos lo levantará de nuevo
+  // Reinicio con PM2
+  process.exit(0);
 }
 
-export default { data, execute };
+export default {
+  data,
+  execute
+};
