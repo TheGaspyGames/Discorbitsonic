@@ -2,9 +2,8 @@ import { Client, GatewayIntentBits, Collection } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import config from "./config.json" with { type: "json" };
 import https from "https";
-import 'dotenv/config'; // ✅ carga variables de entorno desde .env
+import 'dotenv/config'; // carga variables de entorno desde .env
 
 // __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -21,10 +20,10 @@ const client = new Client({
   ],
 });
 
-// Map de comandos
+// Colección de comandos
 client.commands = new Collection();
 
-// Cargar comandos desde /commands
+// Cargar comandos desde la carpeta "commands"
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
 
@@ -34,18 +33,17 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
-// Cargar eventos
+// Cargar eventos desde "handlers/events.js"
 import { registerEvents } from "./handlers/events.js";
 registerEvents(client);
 
 // ================================
 // 🚨 Monitor de caída de internet
 // ================================
-const CHANNEL_ID = process.env.CHANNEL_ID; // canal de alertas del .env
+const CHANNEL_ID = process.env.CHANNEL_ID; // ID de canal para alertas
 let isOffline = false;
 let offlineStart = null;
 
-// Función para chequear internet
 function checkInternet() {
   return new Promise((resolve) => {
     https
@@ -80,7 +78,7 @@ setInterval(async () => {
 
     try {
       const channel = await client.channels.fetch(CHANNEL_ID);
-      if (channel) await channel.send(message);
+      if (channel) channel.send(message);
     } catch (err) {
       console.error("❌ Error al enviar mensaje de alerta:", err);
     }
@@ -91,6 +89,8 @@ setInterval(async () => {
 }, 10 * 1000);
 
 // ================================
-
-// Login usando token desde .env
-client.login(process.env.DISCORD_TOKEN);
+// Login del bot
+// ================================
+client.login(process.env.DISCORD_TOKEN).then(() => {
+  console.log(`Bot iniciado con éxito como ${client.user?.tag ?? "Desconocido"}`);
+});
