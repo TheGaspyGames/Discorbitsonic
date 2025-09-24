@@ -21,9 +21,10 @@ const client = new Client({
   ],
 });
 
+// Map de comandos
 client.commands = new Collection();
 
-// Cargar comandos
+// Cargar comandos desde /commands
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
 
@@ -40,7 +41,7 @@ registerEvents(client);
 // ================================
 // 🚨 Monitor de caída de internet
 // ================================
-const CHANNEL_ID = process.env.CHANNEL_ID; // viene del .env
+const CHANNEL_ID = process.env.CHANNEL_ID; // canal de alertas del .env
 let isOffline = false;
 let offlineStart = null;
 
@@ -79,7 +80,7 @@ setInterval(async () => {
 
     try {
       const channel = await client.channels.fetch(CHANNEL_ID);
-      channel.send(message);
+      if (channel) await channel.send(message);
     } catch (err) {
       console.error("❌ Error al enviar mensaje de alerta:", err);
     }
