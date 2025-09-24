@@ -1,22 +1,34 @@
 import { SlashCommandBuilder } from "discord.js";
-import { sendSetupLog } from "../utils/utilities.js";
+import { sendCommandLog } from "../utils/utilities.js";
+import { configManager } from "../utils/configManager.js";
 
 const data = new SlashCommandBuilder()
   .setName("restart")
-  .setDescription("Reinicia el bot. Solo el propietario puede usarlo.");
+  .setDescription("Reinicia el bot (solo usuario autorizado).");
 
 async function execute(interaction) {
-  const OWNER_ID = "684395420004253729"; // tu ID
-  if (interaction.user.id !== OWNER_ID) {
-    return interaction.reply({ content: "❌ No tienes permisos para ejecutar este comando.", ephemeral: true });
+  // ID autorizado desde tu config
+  const authorizedId = configManager.get("OWNER_ID") || "684395420004253729";
+
+  if (interaction.user.id !== authorizedId) {
+    return interaction.reply({
+      content: "❌ No tienes permisos para reiniciar el bot.",
+      ephemeral: true
+    });
   }
 
-  await interaction.reply({ content: "🔄 Reiniciando bot...", ephemeral: true });
+  // Log del uso del comando
+  await sendCommandLog(interaction.client, "restart", interaction.user);
 
-  // Log del reinicio
-  await sendSetupLog(interaction.client, "🔄 Reinicio de Bot", `Reinicio solicitado por ${interaction.user.tag} (\`${interaction.user.id}\`)`);
+  // Aviso al usuario
+  await interaction.reply({
+    content: "♻️ Reiniciando el bot...",
+    ephemeral: true
+  });
 
-  // Reinicio con PM2
+  console.log(`[BOT] Reinicio solicitado por ${interaction.user.tag}`);
+
+  // Terminar proceso; PM2 u otro gestor lo reiniciará automáticamente
   process.exit(0);
 }
 
