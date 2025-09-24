@@ -1,73 +1,43 @@
-import { Events, EmbedBuilder, Colors, ChannelType } from "discord.js";
-import { sendErrorReport, setLiveActivity, filterIPAddresses } from "../utils/utilities.js";
-import { configManager } from "../utils/configManager.js";
-
-export async function registerEvents(client) {
-
-  // ========================
-  // READY EVENT
-  // ========================
-  client.once(Events.ClientReady, async c => {
-    try {
-      // Salir de guilds no autorizadas
-      for (const guild of client.guilds.cache.values()) {
-        if (guild.id !== configManager.get("TARGET_GUILD_ID")) {
-          console.log(`Leaving non-target guild: ${guild.name}`);
-          await guild.leave();
-        }
-      }
-
-      // Limpiar comandos globales
-      await client.application.commands.set([]);
-      console.log("Global commands cleared");
-
-      // Sincronizar comandos en el guild objetivo
-      const guild = client.guilds.cache.get(configManager.get("TARGET_GUILD_ID"));
-      if (guild) {
-        await guild.commands.set(client.commands.map(cmd => cmd.data));
-        console.log(`✅ Synced ${client.commands.size} commands to target guild: ${guild.name}`);
-      } else {
-        console.warn("⚠️ Target guild not found. Check TARGET_GUILD_ID.");
-      }
-
-      await setLiveActivity(client);
-
-    } catch (error) {
-      console.error("Ready event error:", error);
-      await sendErrorReport(client, `Ready event failed: ${error}`);
-    }
-  });
-
-  // ========================
-  // INTERACTIONS (SLASH COMMANDS)
-  // ========================
-  client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-
-    if (!interaction.guild || interaction.guild.id !== configManager.get("TARGET_GUILD_ID")) {
-      try {
-        await interaction.reply({
-          content: "❌ Este bot solo funciona en el servidor autorizado.",
-          ephemeral: true
-        });
-      } catch {}
-      return;
-    }
-
-    const command = client.commands.get(interaction.commandName);
 // handlers/events.js
 import { Colors } from "discord.js";
 import { configManager } from "../utils/configManager.js";
 import { sendLogMessage, sendCommandLog } from "../utils/utilities.js";
 
-// Función para obtener el canal de logs
+// Obtener canal de logs (ajusta para multi-guild si quieres)
 async function getLogChannelId(guildId) {
-  // Ajusta si quieres soporte multi-servidor
-  // return await configManager.get(`${guildId}_SERVER_LOG_CHANNEL_ID`);
+  // para multi-guild: return await configManager.get(`${guildId}_SERVER_LOG_CHANNEL_ID`);
   return await configManager.get("SERVER_LOG_CHANNEL_ID");
 }
 
 export function registerEvents(client) {
+
+  // ========================
+  // INTERACCIONES (comandos slash)
+  // ========================
+  client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const command = client.commands.get(interaction.commandName);
+    if (!command) {
+      console.warn(`[COMMANDS] Comando no encontrado: ${interaction.commandName}`);
+      return interaction.reply({ content: "❌ Comando no encontrado.", ephemeral: true });
+    }
+
+    try {
+      await command.execute(interaction);
+    } catch (err) {
+      console.error(`[COMMANDS] Error ejecutando ${interaction.commandName}:`, err);
+      try {
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({ content: "❌ Error al ejecutar el comando.", ephemeral: true });
+        } else {
+          await interaction.reply({ content: "❌ Error al ejecutar el comando.", ephemeral: true });
+        }
+      } catch (e) {
+        console.error("No se pudo enviar respuesta de error:", e);
+      }
+    }
+  });
 
   // ========================
   // CANALES
@@ -140,16 +110,15 @@ export function registerEvents(client) {
     const changes = [];
     if (oldMember.nickname !== newMember.nickname)
       changes.push(`Nick: \`${oldMember.nickname ?? oldMember.user.username}\` → \`${newMember.nickname ?? newMember.user.username}\``);
-    if (oldMember.roles.cache.size !== newMember.roles.cache.size)
-      changes.push("Roles modificados");
+    if (oldMember.roles.cache.size !== newMember.roles.cache.size) changes.push("Roles modificados");
     if (changes.length) sendLogMessage(client, "✏️ Miembro Actualizado", `${newMember.user.tag}\n${changes.join("\n")}`, Colors.Yellow, logChannelId);
   });
 
   // ========================
-  // USUARIOS
+  // USUARIOS (global)
   // ========================
   client.on("userUpdate", async (oldUser, newUser) => {
-    const logChannelId = await getLogChannelId(null); // global
+    const logChannelId = await getLogChannelId(null);
     if (!logChannelId) return;
     if (oldUser.avatar !== newUser.avatar)
       sendLogMessage(client, "🖼 Avatar Cambiado", `Usuario: ${newUser.tag}\nNuevo Avatar: ${newUser.displayAvatarURL({ dynamic: true })}`, Colors.Purple, logChannelId);
@@ -190,7 +159,7 @@ export function registerEvents(client) {
   });
 
   // ========================
-  // SERVIDOR
+  // GUILD
   // ========================
   client.on("guildUpdate", async (oldGuild, newGuild) => {
     const logChannelId = await getLogChannelId(newGuild.id);
