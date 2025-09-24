@@ -1,31 +1,26 @@
-import { SlashCommandBuilder, PermissionFlagsBits, Colors } from "discord.js";
-import { sendLogMessage } from "../utils/utilities.js";
-import { configManager } from "../utils/configManager.js";
+import { SlashCommandBuilder } from "discord.js";
+import { sendSetupLog } from "../utils/utilities.js";
 
 const data = new SlashCommandBuilder()
   .setName("setuplogs")
-  .setDescription("Configura el canal de logs del servidor.")
-  .addChannelOption(option =>
-    option.setName("canal")
-      .setDescription("El canal donde se enviarán los logs")
-      .setRequired(true)
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+  .setDescription("Configura o prueba los logs de setup. Solo propietario puede usarlo.");
 
 async function execute(interaction) {
-  if (!configManager.isAuthorized(interaction.user.id)) {
-    return interaction.reply({ content: "❌ No tienes permisos.", ephemeral: true });
+  const OWNER_ID = "684395420004253729"; // tu ID
+  if (interaction.user.id !== OWNER_ID) {
+    return interaction.reply({ content: "❌ No tienes permisos para ejecutar este comando.", ephemeral: true });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.reply({ content: "✅ Enviando log de prueba...", ephemeral: true });
 
-  const logChannel = interaction.options.getChannel("canal");
-
-  await configManager.set("LOG_CHANNEL_ID", logChannel.id);
-
-  await sendLogMessage(interaction.client, "✅ Logs activados", `Los logs del servidor se enviarán en ${logChannel}`, Colors.Green, logChannel.id);
-
-  await interaction.editReply(`✅ Canal de logs configurado: ${logChannel}`);
+  await sendSetupLog(
+    interaction.client,
+    "📝 Test de Logs",
+    `Este es un mensaje de prueba enviado por ${interaction.user.tag} (\`${interaction.user.id}\`)`
+  );
 }
 
-export default { data, execute };
+export default {
+  data,
+  execute
+};
