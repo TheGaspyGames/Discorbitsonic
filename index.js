@@ -1,8 +1,7 @@
-import { Client, GatewayIntentBits, Collection } from "discord.js";
+import { Client, GatewayIntentBits } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import https from "https";
 import 'dotenv/config'; // carga variables de entorno desde .env
 
 // __dirname en ESM
@@ -20,26 +19,52 @@ const client = new Client({
   ],
 });
 
-// Colección de comandos
-client.commands = new Collection();
-
-// Cargar comandos desde la carpeta "commands"
+// ================================
+// Cargar comandos
+// ================================
+client.commands = new Map();
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
 
 for (const file of commandFiles) {
-  const commandModule = await import(`./commands/${file}`);
-  const command = commandModule.default ?? commandModule;
-  client.commands.set(command.data.name, command);
+  try {
+    const filePath = path.join(commandsPath, file);
+    let commandModule;
+
+    if (file.endsWith(".js")) {
+      // Intentar importar como ESM
+      try {
+        commandModule = await import(`file://${filePath}`);
+        commandModule = commandModule.default ?? commandModule;
+      } catch (esmError) {
+        // Si falla, intentar CommonJS
+        commandModule = require(filePath);
+      }
+    }
+
+    if (!commandModule?.data || !commandModule?.execute) {
+      console.warn(`⚠️ Comando ignorado (mal exportado): ${file}`);
+      continue;
+    }
+
+    client.commands.set(commandModule.data.name, commandModule);
+    console.log(`✅ Comando cargado: ${commandModule.data.name}`);
+
+  } catch (error) {
+    console.error(`❌ Error cargando comando ${file}: ${error}`);
+  }
 }
 
-// Cargar eventos desde "handlers/events.js"
+// ================================
+// Registrar eventos
+// ================================
 import { registerEvents } from "./handlers/events.js";
 registerEvents(client);
 
 // ================================
-// 🚨 Monitor de caída de internet
+// Monitor de caída de internet
 // ================================
+import https from "https";
 const CHANNEL_ID = process.env.CHANNEL_ID; // ID de canal para alertas
 let isOffline = false;
 let offlineStart = null;
