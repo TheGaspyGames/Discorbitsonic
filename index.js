@@ -8,6 +8,10 @@ import 'dotenv/config'; // carga variables de entorno desde .env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// === Registrar slash commands automáticamente ===
+import { deployCommands } from "./deploy-commands.js";
+await deployCommands(); // registra todos los comandos antes de loguear el bot
+
 // Crear cliente
 const client = new Client({
   intents: [
