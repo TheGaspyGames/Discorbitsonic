@@ -55,110 +55,151 @@ export async function registerEvents(client) {
     }
 
     const command = client.commands.get(interaction.commandName);
-    if (!command) return;
+// handlers/events.js
+import { Colors } from "discord.js";
+import { configManager } from "../utils/configManager.js";
+import { sendLogMessage, sendCommandLog } from "../utils/utilities.js";
 
-    try {
-      await command.execute(interaction);
-    } catch (error) {
-      console.error(`Error en comando ${interaction.commandName}:`, error);
-      await sendErrorReport(client, error.toString(), interaction.commandName, interaction.user.id);
+// Función para obtener el canal de logs
+async function getLogChannelId(guildId) {
+  // Ajusta si quieres soporte multi-servidor
+  // return await configManager.get(`${guildId}_SERVER_LOG_CHANNEL_ID`);
+  return await configManager.get("SERVER_LOG_CHANNEL_ID");
+}
 
-      const reply = {
-        content: "❌ Ha ocurrido un error inesperado. El administrador ha sido notificado.",
-        ephemeral: true
-      };
-      try {
-        if (interaction.deferred || interaction.replied) {
-          await interaction.followUp(reply);
-        } else {
-          await interaction.reply(reply);
-        }
-      } catch {}
-    }
+export function registerEvents(client) {
+
+  // ========================
+  // CANALES
+  // ========================
+  client.on("channelCreate", async (channel) => {
+    const logChannelId = await getLogChannelId(channel.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "📁 Canal Creado", `Nombre: ${channel.name}\nTipo: ${channel.type}`, Colors.Blue, logChannelId);
+  });
+
+  client.on("channelUpdate", async (oldChannel, newChannel) => {
+    const logChannelId = await getLogChannelId(newChannel.guild?.id);
+    if (!logChannelId) return;
+    const changes = [];
+    if (oldChannel.name !== newChannel.name) changes.push(`Nombre: \`${oldChannel.name}\` → \`${newChannel.name}\``);
+    if (oldChannel.topic !== newChannel.topic) changes.push(`Tema: \`${oldChannel.topic ?? "N/A"}\` → \`${newChannel.topic ?? "N/A"}\``);
+    if (oldChannel.permissionOverwrites.cache.size !== newChannel.permissionOverwrites.cache.size) changes.push("Permisos cambiaron");
+    if (changes.length) sendLogMessage(client, "✏️ Canal Actualizado", changes.join("\n"), Colors.Yellow, logChannelId);
+  });
+
+  client.on("channelDelete", async (channel) => {
+    const logChannelId = await getLogChannelId(channel.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "🗑 Canal Eliminado", `Nombre: ${channel.name}\nTipo: ${channel.type}`, Colors.Red, logChannelId);
   });
 
   // ========================
-  // MEMBER JOIN / LEAVE EVENTS (ACTIVITY UPDATE)
+  // ROLES
   // ========================
-  client.on(Events.GuildMemberAdd, async member => {
-    if (member.guild.id === configManager.get("TARGET_GUILD_ID") && !member.user.bot) {
-      await setLiveActivity(client);
-    }
+  client.on("roleCreate", async (role) => {
+    const logChannelId = await getLogChannelId(role.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "🎨 Rol Creado", `Nombre: ${role.name}\nColor: ${role.hexColor}`, Colors.Blue, logChannelId);
   });
 
-  client.on(Events.GuildMemberRemove, async member => {
-    if (member.guild.id === configManager.get("TARGET_GUILD_ID") && !member.user.bot) {
-      await setLiveActivity(client);
-    }
+  client.on("roleUpdate", async (oldRole, newRole) => {
+    const logChannelId = await getLogChannelId(newRole.guild?.id);
+    if (!logChannelId) return;
+    const changes = [];
+    if (oldRole.name !== newRole.name) changes.push(`Nombre: \`${oldRole.name}\` → \`${newRole.name}\``);
+    if (oldRole.color !== newRole.color) changes.push(`Color: \`${oldRole.hexColor}\` → \`${newRole.hexColor}\``);
+    if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) changes.push("Permisos cambiaron");
+    if (changes.length) sendLogMessage(client, "✏️ Rol Actualizado", changes.join("\n"), Colors.Yellow, logChannelId);
   });
 
-  client.on(Events.GuildCreate, async guild => {
-    if (guild.id === configManager.get("TARGET_GUILD_ID")) {
-      console.log(`Joined target guild: ${guild.name}`);
-      await setLiveActivity(client);
-      try {
-        await guild.commands.set(client.commands.map(cmd => cmd.data));
-      } catch (error) {
-        console.error(`Failed to sync commands to target guild: ${error}`);
-        await sendErrorReport(client, `Failed to sync commands to target guild: ${error}`);
-      }
-    } else {
-      try {
-        let channel = null;
-        if (guild.systemChannel && guild.systemChannel.permissionsFor(guild.members.me)?.has(['SendMessages'])) {
-          channel = guild.systemChannel;
-        } else {
-          for (const ch of guild.channels.cache.values()) {
-            if (ch.type === ChannelType.GuildText && ch.permissionsFor(guild.members.me)?.has(['SendMessages'])) {
-              channel = ch;
-              break;
-            }
-          }
-        }
-        if (channel) {
-          const embed = new EmbedBuilder()
-            .setTitle("❌ Servidor No Autorizado")
-            .setDescription("Este bot solo funciona en el servidor autorizado. Se autoabandonará.")
-            .setColor(Colors.Red);
-          await channel.send({ embeds: [embed] });
-        }
-        await guild.leave();
-      } catch (error) {
-        console.error(`Error leaving non-target guild ${guild.name}:`, error);
-      }
-    }
-  });
-
-  client.on(Events.GuildDelete, async guild => {
-    if (guild.id === configManager.get("TARGET_GUILD_ID")) {
-      console.log(`Removed from target guild: ${guild.name}`);
-      await setLiveActivity(client);
-    }
+  client.on("roleDelete", async (role) => {
+    const logChannelId = await getLogChannelId(role.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "🗑 Rol Eliminado", `Nombre: ${role.name}`, Colors.Red, logChannelId);
   });
 
   // ========================
-  // DM MONITORING
+  // MIEMBROS
   // ========================
-  client.on(Events.MessageCreate, async message => {
-    if (message.channel.type === ChannelType.DM && message.author.id !== client.user.id) {
-      try {
-        if (!configManager.get('DM_MONITORING_ENABLED')) return;
-        if (message.author.id === configManager.get('DM_EXCLUDED_USER_ID')) return;
+  client.on("guildMemberAdd", async (member) => {
+    const logChannelId = await getLogChannelId(member.guild.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "✅ Miembro Entró", `Usuario: ${member.user.tag}`, Colors.Green, logChannelId);
+  });
 
-        // Aquí podrías enviar log de DM si tienes LOG_CHANNEL_ID
-      } catch (error) {
-        console.error(`Error logging DM: ${error}`);
-        await sendErrorReport(client, `Error logging DM from ${message.author.username}: ${error}`, "DM_Logging");
-      }
-    }
+  client.on("guildMemberRemove", async (member) => {
+    const logChannelId = await getLogChannelId(member.guild.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "❌ Miembro Salió", `Usuario: ${member.user.tag}`, Colors.Red, logChannelId);
+  });
+
+  client.on("guildMemberUpdate", async (oldMember, newMember) => {
+    const logChannelId = await getLogChannelId(newMember.guild.id);
+    if (!logChannelId) return;
+    const changes = [];
+    if (oldMember.nickname !== newMember.nickname)
+      changes.push(`Nick: \`${oldMember.nickname ?? oldMember.user.username}\` → \`${newMember.nickname ?? newMember.user.username}\``);
+    if (oldMember.roles.cache.size !== newMember.roles.cache.size)
+      changes.push("Roles modificados");
+    if (changes.length) sendLogMessage(client, "✏️ Miembro Actualizado", `${newMember.user.tag}\n${changes.join("\n")}`, Colors.Yellow, logChannelId);
   });
 
   // ========================
-  // GLOBAL ERROR HANDLER
+  // USUARIOS
   // ========================
-  client.on(Events.Error, async error => {
-    console.error("Discord client error:", error);
-    await sendErrorReport(client, `Discord client error: ${error}`);
+  client.on("userUpdate", async (oldUser, newUser) => {
+    const logChannelId = await getLogChannelId(null); // global
+    if (!logChannelId) return;
+    if (oldUser.avatar !== newUser.avatar)
+      sendLogMessage(client, "🖼 Avatar Cambiado", `Usuario: ${newUser.tag}\nNuevo Avatar: ${newUser.displayAvatarURL({ dynamic: true })}`, Colors.Purple, logChannelId);
+    if (oldUser.username !== newUser.username)
+      sendLogMessage(client, "✏️ Username Cambiado", `Usuario: ${oldUser.tag}\nNuevo username: ${newUser.username}`, Colors.Yellow, logChannelId);
   });
 
+  // ========================
+  // MENSAJES
+  // ========================
+  client.on("messageDelete", async (message) => {
+    if (message.partial || !message.author || !message.channel) return;
+    const logChannelId = await getLogChannelId(message.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "🗑 Mensaje Eliminado", `Autor: ${message.author.tag}\nCanal: ${message.channel.name}\nContenido: ${message.content ?? "[Sin contenido]"}`, Colors.Red, logChannelId);
+  });
+
+  client.on("messageUpdate", async (oldMessage, newMessage) => {
+    if (oldMessage.partial || oldMessage.content === newMessage.content) return;
+    const logChannelId = await getLogChannelId(newMessage.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "✏️ Mensaje Editado", `Autor: ${newMessage.author.tag}\nCanal: ${newMessage.channel.name}\nAntes: ${oldMessage.content}\nDespués: ${newMessage.content}`, Colors.Yellow, logChannelId);
+  });
+
+  // ========================
+  // BANEOS
+  // ========================
+  client.on("guildBanAdd", async (ban) => {
+    const logChannelId = await getLogChannelId(ban.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "🔨 Miembro Baneado", `Usuario: ${ban.user.tag}`, Colors.Red, logChannelId);
+  });
+
+  client.on("guildBanRemove", async (ban) => {
+    const logChannelId = await getLogChannelId(ban.guild?.id);
+    if (!logChannelId) return;
+    sendLogMessage(client, "✅ Miembro Desbaneado", `Usuario: ${ban.user.tag}`, Colors.Green, logChannelId);
+  });
+
+  // ========================
+  // SERVIDOR
+  // ========================
+  client.on("guildUpdate", async (oldGuild, newGuild) => {
+    const logChannelId = await getLogChannelId(newGuild.id);
+    if (!logChannelId) return;
+    const changes = [];
+    if (oldGuild.name !== newGuild.name) changes.push(`Nombre: \`${oldGuild.name}\` → \`${newGuild.name}\``);
+    if (oldGuild.icon !== newGuild.icon) changes.push("Icono cambiado");
+    if (changes.length) sendLogMessage(client, "🏰 Servidor Actualizado", changes.join("\n"), Colors.Yellow, logChannelId);
+  });
+
+  console.log("[LOGS] Listeners de logs activados ✅");
 }
