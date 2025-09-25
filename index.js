@@ -5,13 +5,13 @@ import { fileURLToPath } from "url";
 import 'dotenv/config';
 import https from "https";
 import { configManager } from "./utils/configManager.js";
-import { sendCommandLog, sendLogMessage } from "./utils/utilities.js";
+import { sendCommandLog, sendErrorReport, sendLogMessage } from "./utils/utilities.js";
 
-// __dirname en ESM
+// Obtener el directorio actual en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Crear cliente
+// Crear cliente de Discord
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -22,9 +22,7 @@ const client = new Client({
   ],
 });
 
-// -----------------------------
-// Cargar comandos de slash
-// -----------------------------
+// Cargar comandos de la carpeta "commands"
 client.commands = new Map();
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"));
@@ -41,18 +39,55 @@ for (const file of commandFiles) {
   }
 }
 
-// -----------------------------
-// Eventos de prefijo (!)
-// -----------------------------
+// Funciones de log del bot
+async function logBotOnline() {
+  console.log(`✅ Bot online como ${client.user.tag}`);
+  const logChannelId = configManager.get("BOT_LOG_CHANNEL_ID");
+  if (!logChannelId) return;
+  const channel = await client.channels.fetch(logChannelId).catch(() => null);
+  if (!channel) return;
+  await channel.send(`✅ Bot online como **${client.user.tag}**`);
+}
+
+async function logBotError(error) {
+  console.error("❌ Error del bot:", error);
+  const logChannelId = configManager.get("BOT_LOG_CHANNEL_ID");
+  if (!logChannelId) return;
+  const channel = await client.channels.fetch(logChannelId).catch(() => null);
+  if (!channel) return;
+  await channel.send(`❌ Error del bot: \`\`\`${error}\`\`\``);
+}
+
+async function logDM(message) {
+  const logChannelId = configManager.get("BOT_LOG_CHANNEL_ID");
+  if (!logChannelId) return;
+  const channel = await client.channels.fetch(logChannelId).catch(() => null);
+  if (!channel) return;
+  await channel.send(`💌 DM recibido de **${message.author.tag}**:\n${message.content}`);
+}
+
+async function logCommandExecution(user, commandName, message) {
+  const logChannelId = configManager.get("BOT_LOG_CHANNEL_ID");
+  if (!logChannelId) return;
+  const channel = await client.channels.fetch(logChannelId).catch(() => null);
+  if (!channel) return;
+  await channel.send(`⚡ Comando ejecutado: **${commandName}** por **${user.tag}** en ${message.channel.name}`);
+}
+
+// Comandos por prefijo (!)
 const PREFIX = "!";
 
 client.on("messageCreate", async (message) => {
-  if (message.author.bot || !message.content.startsWith(PREFIX)) return;
+  if (message.author.bot) return;
 
+  // Log de DM
+  if (message.channel.type === 1) return logDM(message);
+
+  // Comandos por prefijo
+  if (!message.content.startsWith(PREFIX)) return;
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // Solo usuarios autorizados
   if (!configManager.isAuthorized(message.author.id)) return;
 
   switch (command) {
@@ -61,26 +96,22 @@ client.on("messageCreate", async (message) => {
         const logChannel = message.mentions.channels.first();
         if (!logChannel) return message.reply("❌ Debes mencionar un canal para logs.");
         await configManager.set("SERVER_LOG_CHANNEL_ID", logChannel.id);
-        await sendCommandLog(client, "setuplogs", message.author, message, `Canal: ${logChannel.name}`);
+        await logCommandExecution(message.author, "setuplogs", message);
         message.reply(`✅ Logs configurados en ${logChannel}`);
-        console.log(`[LOGS] Logs activados en ${message.guild.name}, canal: ${logChannel.name}`);
       }
       break;
 
     case "restart":
       {
-        await sendCommandLog(client, "restart", message.author, message, "Reiniciando bot");
+        await logCommandExecution(message.author, "restart", message);
         message.reply("♻️ Reiniciando bot...");
-        console.log(`[BOT] Reiniciando por comando de ${message.author.tag}`);
-        process.exit(0); // PM2 o Termux reiniciará automáticamente
+        process.exit(0);
       }
       break;
   }
 });
 
-// -----------------------------
 // Monitor de caída de internet
-// -----------------------------
 const CHANNEL_ID = process.env.CHANNEL_ID;
 let isOffline = false;
 let offlineStart = null;
@@ -123,21 +154,30 @@ setInterval(async () => {
   }
 }, 10000);
 
-// -----------------------------
 // Login y sincronización de comandos
-// -----------------------------
 client.once("ready", async () => {
-  console.log(`Bot iniciado como ${client.user.tag}`);
+  await logBotOnline();
 
-  // Sincronizar comandos por guild para pruebas rápidas
   try {
-    const guildId = process.env.GUILD_ID; // Pon tu guild de pruebas en .env
+    const guildId = process.env.GUILD_ID;
     const guild = await client.guilds.fetch(guildId);
     await guild.commands.set(Array.from(client.commands.values()).map(c => c.data.toJSON()));
     console.log(`✅ Comandos sincronizados en el servidor ${guild.name}`);
   } catch (err) {
     console.error("❌ Error sincronizando comandos:", err);
+    await logBotError(err);
   }
+});
+
+// Manejo de errores globales
+process.on("unhandledRejection", async (error) => {
+  console.error("❌ Unhandled Rejection:", error);
+  await logBotError(error);
+});
+
+process.on("uncaughtException", async (error) => {
+  console.error("❌ Uncaught Exception:", error);
+  await logBotError(error);
 });
 
 client.login(process.env.DISCORD_TOKEN);
