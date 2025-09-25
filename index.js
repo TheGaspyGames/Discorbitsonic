@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Colors, ChannelType } from "discord.js";
+import { Client, GatewayIntentBits, Colors } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -6,6 +6,7 @@ import 'dotenv/config';
 import https from "https";
 import { configManager } from "./utils/configManager.js";
 import { sendCommandLog, sendErrorReport, sendLogMessage } from "./utils/utilities.js";
+import { exec } from "child_process";
 
 // Obtener el directorio actual en ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -22,28 +23,27 @@ const client = new Client({
   ],
 });
 
-// =======================
-// Cargar comandos
-// =======================
+// ===== CARGA DE COMANDOS SLASH =====
 client.commands = new Map();
 const commandsPath = path.join(__dirname, "commands");
-const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"));
+const commandFiles = fs.existsSync(commandsPath) ? fs.readdirSync(commandsPath).filter(f => f.endsWith(".js")) : [];
 
 for (const file of commandFiles) {
   try {
     const filePath = path.join(commandsPath, file);
     const commandModule = (await import(`file://${filePath}`)).default;
-    if (!commandModule?.data || !commandModule?.execute) continue;
+    if (!commandModule?.data || !commandModule?.execute) {
+      console.warn(`⚠️ Comando ignorado (falta data o execute): ${file}`);
+      continue;
+    }
     client.commands.set(commandModule.data.name, commandModule);
     console.log(`✅ Comando cargado: ${commandModule.data.name}`);
   } catch (err) {
-    console.error(`❌ Error cargando comando ${file}: ${err}`);
+    console.error(`❌ Error cargando comando ${file}:`, err);
   }
 }
 
-// =======================
-// Logs del bot
-// =======================
+// ===== FUNCIONES DE LOG DEL BOT =====
 async function logBotOnline() {
   console.log(`✅ Bot online como ${client.user.tag}`);
   const logChannelId = configManager.get("BOT_LOG_CHANNEL_ID");
@@ -78,25 +78,20 @@ async function logCommandExecution(user, commandName, message) {
   await channel.send(`⚡ Comando ejecutado: **${commandName}** por **${user.tag}** en ${message.channel.name}`);
 }
 
-// =======================
-// Comandos por prefijo (!)
-// =======================
+// ===== COMANDOS POR PREFIJO (!) =====
 const PREFIX = "!";
-
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
   // Log de DM
-  if (message.channel.type === ChannelType.DM) return logDM(message);
+  if (message.channel.type === 1) return logDM(message);
 
   // Comandos por prefijo
   if (!message.content.startsWith(PREFIX)) return;
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  if (!configManager.isAuthorized(message.author.id)) {
-    return message.reply("❌ No estás autorizado para usar este comando.");
-  }
+  if (!configManager.isAuthorized(message.author.id)) return;
 
   switch (command) {
     case "setuplogs":
@@ -105,29 +100,27 @@ client.on("messageCreate", async (message) => {
         if (!logChannel) return message.reply("❌ Debes mencionar un canal para logs.");
         await configManager.set("SERVER_LOG_CHANNEL_ID", logChannel.id);
         await logCommandExecution(message.author, "setuplogs", message);
-        await message.reply(`✅ Logs configurados en ${logChannel}`);
+        message.reply(`✅ Logs configurados en ${logChannel}`);
       }
       break;
 
     case "restart":
       {
         await logCommandExecution(message.author, "restart", message);
-        await message.reply("♻️ Reiniciando bot...");
-        process.exit(0);
+        message.reply("♻️ Reiniciando bot...");
+        exec("pm2 restart bitsonic");
       }
       break;
   }
 });
 
-// =======================
-// Monitor de internet
-// =======================
+// ===== MONITOR DE INTERNET =====
 const CHANNEL_ID = process.env.CHANNEL_ID;
 let isOffline = false;
 let offlineStart = null;
 
 function checkInternet() {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     https.get("https://www.google.com", res => resolve(res.statusCode === 200))
       .on("error", () => resolve(false));
   });
@@ -135,6 +128,7 @@ function checkInternet() {
 
 setInterval(async () => {
   const online = await checkInternet();
+
   if (!online && !isOffline) {
     isOffline = true;
     offlineStart = new Date();
@@ -163,28 +157,38 @@ setInterval(async () => {
   }
 }, 10000);
 
-// =======================
-// Login y sincronización de comandos Slash
-// =======================
+// ===== INTERACTIONS / SLASH COMMANDS =====
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isCommand()) return;
+
+  const command = client.commands.get(interaction.commandName);
+  if (!command) return;
+
+  try {
+    await interaction.deferReply({ ephemeral: true });
+    await command.execute(interaction);
+  } catch (err) {
+    console.error(err);
+    await interaction.editReply(`❌ Error: ${err.message}`);
+  }
+});
+
+// ===== LOGIN Y SINCRONIZACIÓN DE SLASH COMMANDS =====
 client.once("ready", async () => {
   await logBotOnline();
 
   try {
     const guildId = process.env.GUILD_ID;
-    if (guildId && client.commands.size > 0) {
-      const guild = await client.guilds.fetch(guildId);
-      await guild.commands.set(Array.from(client.commands.values()).map(c => c.data.toJSON()));
-      console.log(`✅ Comandos sincronizados en el servidor ${guild.name}`);
-    }
+    const guild = await client.guilds.fetch(guildId);
+    await guild.commands.set(Array.from(client.commands.values()).map(c => c.data.toJSON()));
+    console.log(`✅ Comandos sincronizados en el servidor ${guild.name}`);
   } catch (err) {
     console.error("❌ Error sincronizando comandos:", err);
     await logBotError(err);
   }
 });
 
-// =======================
-// Manejo de errores globales
-// =======================
+// ===== ERRORES GLOBALES =====
 process.on("unhandledRejection", async (error) => {
   console.error("❌ Unhandled Rejection:", error);
   await logBotError(error);
@@ -195,7 +199,4 @@ process.on("uncaughtException", async (error) => {
   await logBotError(error);
 });
 
-// =======================
-// Login
-// =======================
 client.login(process.env.DISCORD_TOKEN);
