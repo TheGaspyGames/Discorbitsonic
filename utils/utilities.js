@@ -56,6 +56,7 @@ export function isAuthorized(userId) {
 
 /** ----------------- LOGGING ----------------- **/
 
+// Logs generales del servidor (mensajes, baneos, roles, canales, usuarios, servidor)
 export async function sendLogMessage(client, title, description, color = Colors.Blue, channelId = null) {
   try {
     const logChannelId = channelId ?? configManager.get('LOG_CHANNEL_ID');
@@ -102,11 +103,32 @@ export async function sendCommandLog(client, commandName, user, interaction = nu
   }
 }
 
-/** ----------------- RESTO DE TU CÓDIGO (error, setup, activity) ----------------- **/
-// Aquí mantienes tus sendErrorReport, sendSetupLog, cloneUserActivity, etc. como los tenías
+// Logs de errores del bot
+export async function sendErrorReport(client, errorMessage, commandName = null, user = null, interaction = null) {
+  try {
+    const logChannelId = configManager.get('LOG_CHANNEL_ID');
+    if (!logChannelId) return;
+    const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+    if (!logChannel) return;
 
+    const embed = new EmbedBuilder()
+      .setTitle("🚨 Error Report")
+      .setColor(Colors.Red)
+      .setDescription(filterIPAddresses(errorMessage).slice(0, 2048))
+      .setTimestamp()
+      .addFields({ name: "📌 Canal", value: interaction?.channel?.name ?? "N/A", inline: true });
 
-// Nuevo logging de setup / info / eventos
+    if (commandName) embed.addFields({ name: "🔧 Comando", value: commandName, inline: true });
+    if (user) embed.addFields({ name: "👤 Usuario", value: `${user.tag} (\`${user.id}\`)`, inline: true });
+    if (interaction?.content) embed.addFields({ name: "💬 Mensaje original", value: filterIPAddresses(interaction.content).slice(0, 1024), inline: false });
+
+    await logChannel.send({ embeds: [embed] });
+  } catch (err) {
+    console.log(`❌ Failed to send error report: ${err}`);
+  }
+}
+
+// Logs de setup / info / eventos especiales
 export async function sendSetupLog(client, title, message, color = Colors.Blue, channelId = null) {
   try {
     const logChannelId = channelId ?? configManager.get('SETUP_LOG_CHANNEL_ID');
