@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Colors } from "discord.js";
+import { Client, GatewayIntentBits, Colors, ChannelType } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -22,7 +22,9 @@ const client = new Client({
   ],
 });
 
-// Cargar comandos de la carpeta "commands"
+// =======================
+// Cargar comandos
+// =======================
 client.commands = new Map();
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"));
@@ -30,7 +32,7 @@ const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"))
 for (const file of commandFiles) {
   try {
     const filePath = path.join(commandsPath, file);
-    let commandModule = (await import(`file://${filePath}`)).default;
+    const commandModule = (await import(`file://${filePath}`)).default;
     if (!commandModule?.data || !commandModule?.execute) continue;
     client.commands.set(commandModule.data.name, commandModule);
     console.log(`✅ Comando cargado: ${commandModule.data.name}`);
@@ -39,7 +41,9 @@ for (const file of commandFiles) {
   }
 }
 
-// Funciones de log del bot
+// =======================
+// Logs del bot
+// =======================
 async function logBotOnline() {
   console.log(`✅ Bot online como ${client.user.tag}`);
   const logChannelId = configManager.get("BOT_LOG_CHANNEL_ID");
@@ -74,21 +78,25 @@ async function logCommandExecution(user, commandName, message) {
   await channel.send(`⚡ Comando ejecutado: **${commandName}** por **${user.tag}** en ${message.channel.name}`);
 }
 
+// =======================
 // Comandos por prefijo (!)
+// =======================
 const PREFIX = "!";
 
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
   // Log de DM
-  if (message.channel.type === 1) return logDM(message);
+  if (message.channel.type === ChannelType.DM) return logDM(message);
 
   // Comandos por prefijo
   if (!message.content.startsWith(PREFIX)) return;
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  if (!configManager.isAuthorized(message.author.id)) return;
+  if (!configManager.isAuthorized(message.author.id)) {
+    return message.reply("❌ No estás autorizado para usar este comando.");
+  }
 
   switch (command) {
     case "setuplogs":
@@ -97,27 +105,29 @@ client.on("messageCreate", async (message) => {
         if (!logChannel) return message.reply("❌ Debes mencionar un canal para logs.");
         await configManager.set("SERVER_LOG_CHANNEL_ID", logChannel.id);
         await logCommandExecution(message.author, "setuplogs", message);
-        message.reply(`✅ Logs configurados en ${logChannel}`);
+        await message.reply(`✅ Logs configurados en ${logChannel}`);
       }
       break;
 
     case "restart":
       {
         await logCommandExecution(message.author, "restart", message);
-        message.reply("♻️ Reiniciando bot...");
+        await message.reply("♻️ Reiniciando bot...");
         process.exit(0);
       }
       break;
   }
 });
 
-// Monitor de caída de internet
+// =======================
+// Monitor de internet
+// =======================
 const CHANNEL_ID = process.env.CHANNEL_ID;
 let isOffline = false;
 let offlineStart = null;
 
 function checkInternet() {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     https.get("https://www.google.com", res => resolve(res.statusCode === 200))
       .on("error", () => resolve(false));
   });
@@ -125,7 +135,6 @@ function checkInternet() {
 
 setInterval(async () => {
   const online = await checkInternet();
-
   if (!online && !isOffline) {
     isOffline = true;
     offlineStart = new Date();
@@ -154,22 +163,28 @@ setInterval(async () => {
   }
 }, 10000);
 
-// Login y sincronización de comandos
+// =======================
+// Login y sincronización de comandos Slash
+// =======================
 client.once("ready", async () => {
   await logBotOnline();
 
   try {
     const guildId = process.env.GUILD_ID;
-    const guild = await client.guilds.fetch(guildId);
-    await guild.commands.set(Array.from(client.commands.values()).map(c => c.data.toJSON()));
-    console.log(`✅ Comandos sincronizados en el servidor ${guild.name}`);
+    if (guildId && client.commands.size > 0) {
+      const guild = await client.guilds.fetch(guildId);
+      await guild.commands.set(Array.from(client.commands.values()).map(c => c.data.toJSON()));
+      console.log(`✅ Comandos sincronizados en el servidor ${guild.name}`);
+    }
   } catch (err) {
     console.error("❌ Error sincronizando comandos:", err);
     await logBotError(err);
   }
 });
 
+// =======================
 // Manejo de errores globales
+// =======================
 process.on("unhandledRejection", async (error) => {
   console.error("❌ Unhandled Rejection:", error);
   await logBotError(error);
@@ -180,4 +195,7 @@ process.on("uncaughtException", async (error) => {
   await logBotError(error);
 });
 
+// =======================
+// Login
+// =======================
 client.login(process.env.DISCORD_TOKEN);
