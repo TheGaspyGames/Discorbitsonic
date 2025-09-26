@@ -1,8 +1,8 @@
+import { exec } from "child_process";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { getRecentCommits } from "../utils/utilities.js";
+import { getRecentCommits, isAuthorized } from "../utils/utilities.js";
 
-// Mapa para guardar estado por canal
-const autoUpdateChannels = new Map(); // canalId -> { message, lastCommitSha }
+const autoUpdateChannels = new Map();
 
 export async function updGitCommand(message, args, updGitEmbeds) {
   const channelId = message.channel.id;
@@ -13,17 +13,14 @@ export async function updGitCommand(message, args, updGitEmbeds) {
 
   message.reply("🚀 Modo auto-updates activado! El bot ahora actualizará automáticamente los commits recientes.");
 
-  // Iniciamos el auto-update loop para este canal
   const autoUpdate = async () => {
     try {
       const commits = await getRecentCommits();
       if (!commits.length) return;
 
-      // Comparamos si hay commits nuevos
       const lastCommitSha = autoUpdateChannels.get(channelId)?.lastCommitSha;
-      if (commits[0].sha === lastCommitSha) return; // No hay commits nuevos
+      if (commits[0].sha === lastCommitSha) return;
 
-      // Creamos embed
       const embed = new EmbedBuilder()
         .setColor(0x00ff99)
         .setTitle("Actualizaciones recientes del repositorio")
@@ -47,24 +44,41 @@ export async function updGitCommand(message, args, updGitEmbeds) {
         updGitEmbeds.set(channelId, sentMessage);
       }
 
-      // Guardamos el último SHA
       autoUpdateChannels.set(channelId, { message: sentMessage, lastCommitSha: commits[0].sha });
 
-      // Collector para botones
       const collector = sentMessage.createMessageComponentCollector({ time: 60000 });
-      collector.on("collect", i => {
-        if (i.customId === "yes_update") i.reply({ content: "Actualización confirmada ✅", ephemeral: true });
-        if (i.customId === "no_update") i.reply({ content: "No se marcará la actualización ❌", ephemeral: true });
+      collector.on("collect", async i => {
+        // Solo usuario autorizado puede aplicar update
+        if (i.customId === "yes_update") {
+          if (!isAuthorized(i)) {
+            return i.reply({ content: "❌ No estás autorizado para aplicar la actualización.", ephemeral: true });
+          }
+
+          i.reply({ content: "⬇️ Descargando y aplicando actualización...", ephemeral: true });
+
+          // Ejecutar git pull
+          exec("git pull", (err, stdout, stderr) => {
+            if (err) {
+              console.error("Error aplicando update:", err);
+              sentMessage.edit({ content: "❌ Error aplicando la actualización!", components: [] });
+              return;
+            }
+            console.log(stdout);
+            sentMessage.edit({ content: "✅ Actualización aplicada correctamente!", components: [] });
+          });
+        }
+
+        if (i.customId === "no_update") {
+          i.reply({ content: "No se aplicará la actualización ❌", ephemeral: true });
+        }
       });
+
     } catch (err) {
       console.error("Error en auto-update de commits:", err);
     }
   };
 
-  // Ejecutamos inmediatamente y luego cada 30s
   await autoUpdate();
   const interval = setInterval(autoUpdate, 30 * 1000);
-
-  // Guardamos el interval para poder cancelarlo si quieres más tarde
   autoUpdateChannels.set(channelId, { ...autoUpdateChannels.get(channelId), interval });
 }
