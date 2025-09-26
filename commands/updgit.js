@@ -1,10 +1,16 @@
 import { exec } from "child_process";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+import config from "../config.json" with { type: "json" };
 import { getRecentCommits, isAuthorized } from "../utils/utilities.js";
 
 const autoUpdateChannels = new Map();
 
 export async function updGitCommand(message, args, updGitEmbeds) {
+  // Verificar LOG_CHANNEL_ID
+  if (config.LOG_CHANNEL_ID !== "1417241762661138502") {
+    return message.reply("❌ Auto-updates solo se pueden activar si el LOG_CHANNEL_ID es el correcto.");
+  }
+
   const channelId = message.channel.id;
 
   if (autoUpdateChannels.has(channelId)) {
@@ -48,7 +54,6 @@ export async function updGitCommand(message, args, updGitEmbeds) {
 
       const collector = sentMessage.createMessageComponentCollector({ time: 60000 });
       collector.on("collect", async i => {
-        // Solo usuario autorizado puede aplicar update
         if (i.customId === "yes_update") {
           if (!isAuthorized(i)) {
             return i.reply({ content: "❌ No estás autorizado para aplicar la actualización.", ephemeral: true });
@@ -56,7 +61,6 @@ export async function updGitCommand(message, args, updGitEmbeds) {
 
           i.reply({ content: "⬇️ Descargando y aplicando actualización...", ephemeral: true });
 
-          // Ejecutar git pull
           exec("git pull", (err, stdout, stderr) => {
             if (err) {
               console.error("Error aplicando update:", err);
