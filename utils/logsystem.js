@@ -1,93 +1,162 @@
-import { EmbedBuilder, Colors } from "discord.js";
+import { WebhookClient, EmbedBuilder, Colors } from "discord.js";
 import fs from "fs";
 import path from "path";
 
+const configPath = path.join(process.cwd(), "config.json");
+
+function readConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch (e) {
+    console.error("No se pudo leer config.json:", e);
+    return {};
+  }
+}
+
 export function setupServerLogs(client) {
-  const configPath = path.join(process.cwd(), "config.json");
-  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const config = readConfig();
 
-  if (!config.PREMIUM_LOGS_ENABLED) return;
-  if (!config.PREMIUM_ID) return console.log("❌ PREMIUM_ID no definido en config.json");
+  if (!config.PREMIUM_LOGS_ENABLED) {
+    console.log("Logs premium desactivados (PREMIUM_LOGS_ENABLED=false).");
+    return;
+  }
 
-  const sendLog = async (title, description, color = Colors.Blue) => {
+  if (!config.PREMIUM_ID && !config.PREMIUM_WEBHOOK_URL && !(config.PREMIUM_WEBHOOK_ID && config.PREMIUM_WEBHOOK_TOKEN)) {
+    console.log("❌ PREMIUM_ID o webhook no definidos en config.json - logs premium no iniciados.");
+    return;
+  }
+
+  // Inicializar WebhookClient si hay webhook configurado
+  let webhookClient = null;
+  try {
+    if (config.PREMIUM_WEBHOOK_URL) {
+      webhookClient = new WebhookClient({ url: config.PREMIUM_WEBHOOK_URL });
+      console.log("Logsystem: usando PREMIUM_WEBHOOK_URL.");
+    } else if (config.PREMIUM_WEBHOOK_ID && config.PREMIUM_WEBHOOK_TOKEN) {
+      webhookClient = new WebhookClient({ id: config.PREMIUM_WEBHOOK_ID, token: config.PREMIUM_WEBHOOK_TOKEN });
+      console.log("Logsystem: usando PREMIUM_WEBHOOK_ID + TOKEN.");
+    }
+  } catch (e) {
+    console.error("Error creando WebhookClient:", e);
+    webhookClient = null;
+  }
+
+  const sendViaWebhook = async (embed) => {
+    if (!webhookClient) return false;
     try {
-      const channel = await client.channels.fetch(config.PREMIUM_ID);
-      if (!channel) return;
-      const embed = new EmbedBuilder()
-        .setTitle(title)
-        .setDescription(description)
-        .setColor(color)
-        .setTimestamp();
-      await channel.send({ embeds: [embed] });
-    } catch(err) {
-      console.error("Error enviando log:", err);
+      await webhookClient.send({ username: "Discorbitsonic Logs", embeds: [embed] });
+      return true;
+    } catch (e) {
+      console.error("Error enviando embed por webhook:", e);
+      return false;
     }
   };
 
-  // Mensajes eliminados y editados
+  const sendLog = async (title, description, color = Colors.Blue) => {
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setDescription(description)
+      .setColor(color)
+      .setTimestamp();
+
+    // Intentar webhook primero
+    if (await sendViaWebhook(embed)) return;
+
+    // Fallback: enviar como bot al canal PREMIUM_ID (si existe)
+    try {
+      const cfg = readConfig(); // re-lectura por si cambió
+      if (!cfg.PREMIUM_ID) return;
+      const channel = await client.channels.fetch(cfg.PREMIUM_ID).catch(() => null);
+      if (!channel) return;
+      await channel.send({ embeds: [embed] });
+    } catch (err) {
+      console.error("Error enviando log por channel.send:", err);
+    }
+  };
+
+  // ---------- Eventos ----------
   client.on("messageDelete", message => {
-    if (!message?.author || message.author.bot) return;
-    sendLog("🗑 Mensaje eliminado", `**Usuario:** ${message.author.tag} (${message.author.id})\n**Canal:** <#${message.channel?.id || "No disponible"}>\n**Mensaje:** ${message.content || "[No disponible]"}`, Colors.Red);
+    if (!message?.guild) return;
+    if (message.author?.bot) return;
+    sendLog("🗑 Mensaje eliminado",
+      `**Usuario:** ${message.author?.tag ?? "Desconocido"} (${message.author?.id ?? "?"})\n**Canal:** <#${message.channel?.id ?? "?"}>\n**Mensaje:** ${message.content || "[No disponible]"}`,
+      Colors.Red);
   });
 
   client.on("messageUpdate", (oldMessage, newMessage) => {
-    if (!newMessage?.author || newMessage.author.bot) return;
-    sendLog("✏️ Mensaje editado", `**Usuario:** ${newMessage.author.tag} (${newMessage.author.id})\n**Canal:** <#${newMessage.channel?.id || "No disponible"}>\n**Antes:** ${oldMessage?.content || "[No disponible]"}\n**Después:** ${newMessage?.content || "[No disponible]"}`, Colors.Yellow);
+    if (!newMessage?.guild) return;
+    if (newMessage.author?.bot) return;
+    sendLog("✏️ Mensaje editado",
+      `**Usuario:** ${newMessage.author?.tag ?? "Desconocido"} (${newMessage.author?.id ?? "?"})\n**Canal:** <#${newMessage.channel?.id ?? "?"}>\n**Antes:** ${oldMessage?.content || "[No disponible]"}\n**Después:** ${newMessage?.content || "[No disponible]"}`,
+      Colors.Yellow);
   });
 
-  // Miembros que entran o salen
   client.on("guildMemberAdd", member => {
     if (!member?.user) return;
-    sendLog("✅ Nuevo miembro", `**Usuario:** ${member.user.tag} (${member.id}) se unió al servidor`, Colors.Green);
+    sendLog("✅ Nuevo miembro",
+      `**Usuario:** ${member.user.tag} (${member.id}) se unió al servidor`,
+      Colors.Green);
   });
 
   client.on("guildMemberRemove", member => {
     if (!member?.user) return;
-    sendLog("❌ Miembro salido", `**Usuario:** ${member.user.tag} (${member.id}) salió o fue expulsado del servidor`, Colors.Red);
+    sendLog("❌ Miembro salido",
+      `**Usuario:** ${member.user.tag} (${member.id}) salió o fue expulsado del servidor`,
+      Colors.Red);
   });
 
-  // Actualización de roles
   client.on("guildMemberUpdate", (oldMember, newMember) => {
     if (!oldMember?.roles || !newMember?.roles || !newMember?.user) return;
     const oldRoles = oldMember.roles.cache.map(r => r.name).join(", ") || "Ninguno";
     const newRoles = newMember.roles.cache.map(r => r.name).join(", ") || "Ninguno";
     if (oldRoles !== newRoles) {
-      sendLog("🛡 Rol actualizado", `**Usuario:** ${newMember.user.tag} (${newMember.id})\n**Antes:** ${oldRoles}\n**Después:** ${newRoles}`, Colors.Orange);
+      sendLog("🛡 Rol actualizado",
+        `**Usuario:** ${newMember.user.tag} (${newMember.id})\n**Antes:** ${oldRoles}\n**Después:** ${newRoles}`,
+        Colors.Orange);
     }
   });
 
-  // Reacciones
   client.on("messageReactionAdd", (reaction, user) => {
     if (!user || user.bot) return;
-    sendLog("➕ Reacción añadida", `**Usuario:** ${user.tag} (${user.id})\n**Mensaje:** ${reaction.message?.content || "[No disponible]"}\n**Emoji:** ${reaction.emoji?.name || "[No disponible]"}`);
+    sendLog("➕ Reacción añadida",
+      `**Usuario:** ${user.tag} (${user.id})\n**Mensaje:** ${reaction.message?.content || "[No disponible]"}\n**Emoji:** ${reaction.emoji?.name || "[No disponible]"}`);
   });
 
   client.on("messageReactionRemove", (reaction, user) => {
     if (!user || user.bot) return;
-    sendLog("➖ Reacción eliminada", `**Usuario:** ${user.tag} (${user.id})\n**Mensaje:** ${reaction.message?.content || "[No disponible]"}\n**Emoji:** ${reaction.emoji?.name || "[No disponible]"}`);
+    sendLog("➖ Reacción eliminada",
+      `**Usuario:** ${user.tag} (${user.id})\n**Mensaje:** ${reaction.message?.content || "[No disponible]"}\n**Emoji:** ${reaction.emoji?.name || "[No disponible]"}`);
   });
 
-  // ============================
-  // Baneos, unbaneos y kicks
-  // ============================
-  client.on("guildBanAdd", async (ban) => {
+  client.on("guildBanAdd", ban => {
     if (!ban?.user) return;
-    sendLog("⛔ Usuario baneado", `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Servidor:** ${ban.guild?.name || "No disponible"}`, Colors.Red);
+    sendLog("⛔ Usuario baneado",
+      `**Usuario:** ${ban.user.tag} (${ban.user.id}) fue baneado`,
+      Colors.DarkRed);
   });
 
-  client.on("guildBanRemove", async (ban) => {
+  client.on("guildBanRemove", ban => {
     if (!ban?.user) return;
-    sendLog("✅ Usuario desbaneado", `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Servidor:** ${ban.guild?.name || "No disponible"}`, Colors.Green);
+    sendLog("♻️ Usuario desbaneado",
+      `**Usuario:** ${ban.user.tag} (${ban.user.id}) fue desbaneado`,
+      Colors.Green);
   });
 
   client.on("guildMemberRemove", member => {
-    if (!member?.user || !member.guild) return;
-    // Para diferenciar un kick de un leave natural, habría que usar audit logs
-    member.guild.fetchAuditLogs({ type: "MEMBER_KICK", limit: 1 }).then(audit => {
-      const kick = audit.entries.first();
-      if (kick && kick.target.id === member.id) {
-        sendLog("👢 Usuario expulsado", `**Usuario:** ${member.user.tag} (${member.id})\n**Ejecutor:** ${kick.executor?.tag || "No disponible"}`, Colors.Orange);
-      }
-    }).catch(() => {});
+    // intentar detectar kick por audit logs
+    try {
+      if (!member?.guild || !member?.id) return;
+      member.guild.fetchAuditLogs({ type: 20, limit: 1 }) // 20 = MEMBER_KICK
+        .then(audit => {
+          const entry = audit.entries.first();
+          if (entry && entry.target && entry.target.id === member.id) {
+            sendLog("👢 Usuario expulsado",
+              `**Usuario:** ${member.user?.tag || member.id} (${member.id})\n**Ejecutor:** ${entry.executor?.tag || "No disponible"}`,
+              Colors.Orange);
+          }
+        }).catch(()=>{});
+    } catch(e){}
   });
+
+  console.log("Logsystem (webhook mode) inicializado.");
 }
