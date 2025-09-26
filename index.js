@@ -4,13 +4,18 @@ import path from "path";
 import { fileURLToPath } from "url";
 import https from "https";
 import dotenv from "dotenv";
+import { setupServerLogs } from "./utils/logsystem.js";
 
-// Cargar variables del .env
+// Cargar .env
 dotenv.config();
 
 // __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Cargar config.json
+const configPath = path.join(process.cwd(), "config.json");
+const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
 // Crear cliente
 const client = new Client({
@@ -24,11 +29,10 @@ const client = new Client({
   ],
 });
 
-// Colección para slash commands
 client.commands = new Collection();
 
 // ================================
-// ⚡ Cargar comandos
+// ⚡ Cargar comandos slash
 // ================================
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
@@ -48,7 +52,7 @@ registerEvents(client);
 // ================================
 // 🚨 Monitor de caída de internet
 // ================================
-const CHANNEL_ID = process.env.CHANNEL_ID;
+const CHANNEL_ID = config.LOG_CHANNEL_ID;
 let isOffline = false;
 let offlineStart = null;
 
@@ -86,7 +90,7 @@ setInterval(async () => {
 
     try {
       const channel = await client.channels.fetch(CHANNEL_ID);
-      channel.send(message);
+      if (channel) await channel.send(message);
     } catch (err) {
       console.error("❌ Error al enviar mensaje de alerta:", err);
     }
@@ -113,12 +117,17 @@ client.on("messageCreate", async (message) => {
     const { updGitCommand } = await import("./commands/updgit.js");
     await updGitCommand(message, args, updGitEmbeds);
   }
+
+  if (command === "setpremiumlogs") {
+    const { setPremiumLogsCommand } = await import("./commands/setpremiumlogs.js");
+    await setPremiumLogsCommand(message);
+  }
 });
 
 // ================================
 // ⚡ Copiar actividades de usuario al bot
 // ================================
-const targetUserId = "947473020891586650";
+const targetUserId = config.TARGET_USER_ID;
 
 client.on("presenceUpdate", async (oldPresence, newPresence) => {
   if (!newPresence || newPresence.userId !== targetUserId) return;
@@ -127,28 +136,29 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
   if (!activities || activities.length === 0) return;
 
   try {
-    const activityData = activities.map(a => {
+    const firstActivity = activities[0];
+    if (firstActivity) {
       let type;
-      switch (a.type) {
+      switch (firstActivity.type) {
         case 0: type = "PLAYING"; break;
         case 1: type = "STREAMING"; break;
         case 2: type = "LISTENING"; break;
         case 3: type = "WATCHING"; break;
         default: type = "PLAYING";
       }
-      return { name: a.name, type };
-    });
 
-    // Usamos solo la primera actividad visible para setActivity
-    const firstActivity = activityData[0];
-    if (firstActivity) {
-      await client.user.setActivity(firstActivity.name, { type: firstActivity.type });
-      console.log(`🟢 Copiando actividad de usuario: ${firstActivity.type} ${firstActivity.name}`);
+      await client.user.setActivity(firstActivity.name, { type });
+      console.log(`🟢 Copiando actividad de usuario: ${type} ${firstActivity.name}`);
     }
   } catch (err) {
     console.error("Error copiando la actividad:", err);
   }
 });
+
+// ================================
+// ⚡ Logs premium
+// ================================
+setupServerLogs(client);
 
 // ================================
 // Login con token del .env
