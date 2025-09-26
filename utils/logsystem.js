@@ -24,11 +24,6 @@ export function setupServerLogs(client) {
     }
   };
 
-  client.on("messageCreate", message => {
-    if (message.author.bot) return;
-    sendLog("💬 Mensaje enviado", `**Usuario:** ${message.author.tag} (${message.author.id})\n**Canal:** <#${message.channel.id}>\n**Mensaje:** ${message.content}`);
-  });
-
   client.on("messageDelete", message => {
     if (message.author?.bot) return;
     sendLog("🗑 Mensaje eliminado", `**Usuario:** ${message.author.tag} (${message.author.id})\n**Canal:** <#${message.channel.id}>\n**Mensaje:** ${message.content || "[No disponible]"}`, Colors.Red);
