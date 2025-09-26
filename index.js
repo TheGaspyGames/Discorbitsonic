@@ -125,38 +125,6 @@ client.on("messageCreate", async (message) => {
 });
 
 // ================================
-// ⚡ Copiar actividades de usuario al bot
-// ================================
-const targetUserId = config.TARGET_USER_ID;
-
-client.on("presenceUpdate", async (oldPresence, newPresence) => {
-  if (!newPresence || !newPresence.user) return;
-  if (newPresence.user.id !== targetUserId) return;
-
-  const activities = newPresence.activities;
-  if (!activities || activities.length === 0) return;
-
-  try {
-    const firstActivity = activities[0];
-    if (firstActivity) {
-      let type;
-      switch (firstActivity.type) {
-        case 0: type = "PLAYING"; break;
-        case 1: type = "STREAMING"; break;
-        case 2: type = "LISTENING"; break;
-        case 3: type = "WATCHING"; break;
-        default: type = "PLAYING";
-      }
-
-      await client.user.setActivity(firstActivity.name, { type });
-      console.log(`🟢 Copiando actividad de usuario: ${type} ${firstActivity.name}`);
-    }
-  } catch (err) {
-    console.error("Error copiando la actividad:", err);
-  }
-});
-
-// ================================
 // ⚡ Logs premium
 // ================================
 setupServerLogs(client);
