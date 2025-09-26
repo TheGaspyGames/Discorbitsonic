@@ -25,7 +25,7 @@ async function execute(interaction) {
     cd "${repoPath}" || exit 1
     git reset --hard
     git pull https://github.com/TheGaspyGames/Discorbitsonic.git
-    pm2 restart discorbots
+    pm2 restart bitsonic
   `;
 
   exec(command, { shell: "/bin/bash" }, (error, stdout, stderr) => {
