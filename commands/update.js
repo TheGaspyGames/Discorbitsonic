@@ -14,7 +14,7 @@ async function execute(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const repoPath = "/data/data/com.termux/files/home/storage/downloads/Discorbitsonic"; // ruta de tu repo
-  const processName = "discorbots"; // nombre de pm2
+  const processName = "bitsonic"; // nombre de pm2
 
   // Primero hacemos un fetch y check si hay cambios
   exec(`cd "${repoPath}" && git fetch`, (fetchErr) => {
