@@ -2,8 +2,11 @@ import { Client, GatewayIntentBits, Collection } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import config from "./config.json" with { type: "json" };
-import https from "https"; // 👈 agregado para chequear internet
+import https from "https";
+import dotenv from "dotenv";
+
+// Cargar variables del .env
+dotenv.config();
 
 // __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -39,11 +42,11 @@ registerEvents(client);
 // ================================
 // 🚨 Monitor de caída de internet
 // ================================
-const CHANNEL_ID = "1417241762661138502";
+
+const CHANNEL_ID = process.env.CHANNEL_ID; // desde .env
 let isOffline = false;
 let offlineStart = null;
 
-// Función para chequear internet
 function checkInternet() {
   return new Promise((resolve) => {
     https
@@ -54,19 +57,16 @@ function checkInternet() {
   });
 }
 
-// Intervalo de chequeo cada 10 segundos
 setInterval(async () => {
   const online = await checkInternet();
 
   if (!online && !isOffline) {
-    // Internet caído
     isOffline = true;
     offlineStart = new Date();
     console.log("🚨 Internet caído:", offlineStart.toLocaleString("es-CL", { timeZone: "America/Santiago" }));
   }
 
   if (online && isOffline) {
-    // Internet volvió
     const offlineEnd = new Date();
     const durationMs = offlineEnd - offlineStart;
 
@@ -85,7 +85,6 @@ setInterval(async () => {
       console.error("❌ Error al enviar mensaje de alerta:", err);
     }
 
-    // Resetear estado
     isOffline = false;
     offlineStart = null;
   }
@@ -93,6 +92,7 @@ setInterval(async () => {
 
 // ================================
 
-// Login
-client.login("MTIzNTAzMDI1MDY0MDExMzcxNQ.GeyzsC.h6ek2cBiHOp_yWlDfO85YvR6_aWorWsJn36YMg");
+// Login con token del .env
+client.login(process.env.DISCORD_TOKEN);
+;
 
