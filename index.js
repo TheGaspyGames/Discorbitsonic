@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection } from "discord.js";
+import { Client, GatewayIntentBits, Partials, Collection } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -17,16 +17,20 @@ const __dirname = path.dirname(__filename);
 const configPath = path.join(process.cwd(), "config.json");
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
-// Crear cliente
+// Crear cliente con intents y partials necesarios para logs premium
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.GuildPresences, // Necesario para presenceUpdate
+    GatewayIntentBits.GuildMessageReactions // ← necesario para reacciones
   ],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.Reaction
+  ]
 });
 
 client.commands = new Collection();
