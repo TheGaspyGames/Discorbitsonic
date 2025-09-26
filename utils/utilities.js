@@ -1,6 +1,7 @@
 import { EmbedBuilder, Colors } from "discord.js";
 import config from "../config.json" with { type: "json" };
 import { configManager } from "./configManager.js";
+import axios from "axios";
 
 /**
  * Calculates similarity between two strings using a simple algorithm
@@ -73,7 +74,6 @@ export function splitMessage(text, maxLength = 2000) {
  * Filters out IP addresses from text for privacy
  */
 export function filterIPAddresses(text) {
-  // Remove IPv4 addresses (xxx.xxx.xxx.xxx pattern)
   const ipv4Pattern = /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g;
   return text.replace(ipv4Pattern, '[IP_FILTERED]');
 }
@@ -146,9 +146,7 @@ export async function sendLogMessage(client, title, message, color = Colors.Blue
  * Sends a command usage log to the designated log channel when enabled
  */
 export async function sendCommandLog(client, commandName, user, additionalInfo = null) {
-  if (!configManager.get('COMMAND_LOGGING_ENABLED')) {
-    return;
-  }
+  if (!configManager.get('COMMAND_LOGGING_ENABLED')) return;
   
   try {
     const logChannelId = configManager.get('LOG_CHANNEL_ID');
@@ -189,3 +187,17 @@ export async function setLiveActivity(client) {
   }
 }
 
+/**
+ * Fetches recent commits from the GitHub repo (for !updgit)
+ */
+export async function getRecentCommits() {
+  try {
+    const response = await axios.get(
+      "https://api.github.com/repos/TheGaspyGames/Discorbitsonic/commits"
+    );
+    return response.data.slice(0, 2); // Solo los 2 commits más recientes
+  } catch (error) {
+    console.error("Error al obtener los commits:", error);
+    return [];
+  }
+}
