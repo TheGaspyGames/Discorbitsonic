@@ -130,7 +130,8 @@ client.on("messageCreate", async (message) => {
 const targetUserId = config.TARGET_USER_ID;
 
 client.on("presenceUpdate", async (oldPresence, newPresence) => {
-  if (!newPresence || newPresence.userId !== targetUserId) return;
+  if (!newPresence || !newPresence.user) return;
+  if (newPresence.user.id !== targetUserId) return;
 
   const activities = newPresence.activities;
   if (!activities || activities.length === 0) return;
