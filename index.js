@@ -23,36 +23,38 @@ const client = new Client({
   ],
 });
 
+// Colección para slash commands
 client.commands = new Collection();
 
-// Cargar comandos
+// ================================
+// ⚡ Cargar comandos
+// ================================
 const commandsPath = path.join(__dirname, "commands");
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
   const command = commandModule.default ?? commandModule;
-  client.commands.set(command.data.name, command);
+  if (command.data?.name) client.commands.set(command.data.name, command);
 }
 
-// Cargar eventos
+// ================================
+// ⚡ Cargar eventos
+// ================================
 import { registerEvents } from "./handlers/events.js";
 registerEvents(client);
 
 // ================================
 // 🚨 Monitor de caída de internet
 // ================================
-
-const CHANNEL_ID = process.env.CHANNEL_ID; // desde .env
+const CHANNEL_ID = process.env.CHANNEL_ID;
 let isOffline = false;
 let offlineStart = null;
 
 function checkInternet() {
   return new Promise((resolve) => {
     https
-      .get("https://www.google.com", (res) => {
-        resolve(res.statusCode === 200);
-      })
+      .get("https://www.google.com", (res) => resolve(res.statusCode === 200))
       .on("error", () => resolve(false));
   });
 }
@@ -63,7 +65,10 @@ setInterval(async () => {
   if (!online && !isOffline) {
     isOffline = true;
     offlineStart = new Date();
-    console.log("🚨 Internet caído:", offlineStart.toLocaleString("es-CL", { timeZone: "America/Santiago" }));
+    console.log(
+      "🚨 Internet caído:",
+      offlineStart.toLocaleString("es-CL", { timeZone: "America/Santiago" })
+    );
   }
 
   if (online && isOffline) {
@@ -91,8 +96,25 @@ setInterval(async () => {
 }, 10 * 1000);
 
 // ================================
+// ⚡ Comandos de prefijo
+// ================================
+const prefix = "!";
+const updGitEmbeds = new Map();
 
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+  if (!message.content.startsWith(prefix)) return;
+
+  const args = message.content.slice(prefix.length).trim().split(/ +/);
+  const command = args.shift().toLowerCase();
+
+  if (command === "updgit") {
+    const { updGitCommand } = await import("./commands/updgit.js");
+    await updGitCommand(message, args, updGitEmbeds);
+  }
+});
+
+// ================================
 // Login con token del .env
+// ================================
 client.login(process.env.DISCORD_TOKEN);
-;
-
