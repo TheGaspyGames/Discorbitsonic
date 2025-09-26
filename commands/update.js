@@ -18,7 +18,7 @@ async function execute(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   // Ajusta esta ruta a la carpeta donde está clonado tu repo en Termux
-  const repoPath = "/data/data/com.termux/files/home/Discorbitsonic";
+  const repoPath = "/storage/emulated/0/Download/Discorbitsonic";
 
   // Ejecuta git pull + reinicio pm2
   exec(
