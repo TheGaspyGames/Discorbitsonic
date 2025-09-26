@@ -1,19 +1,23 @@
-// utils/logsystem.js
 import { WebhookClient, EmbedBuilder, Colors } from "discord.js";
 import dotenv from "dotenv";
-dotenv.config();
+
+dotenv.config(); // <-- lee .env
 
 export function setupServerLogs(client) {
-  if (process.env.PREMIUM_LOGS_ENABLED !== "true") {
-    console.log("Logs premium desactivados.");
-    return;
-  }
-  if (!process.env.PREMIUM_WEBHOOK_URL) {
-    console.log("❌ No hay PREMIUM_WEBHOOK_URL en .env");
+  // lee directamente variables del .env
+  const premiumLogsEnabled = process.env.PREMIUM_LOGS_ENABLED === "true";
+  const premiumWebhookUrl = process.env.PREMIUM_WEBHOOK_URL;
+
+  if (!premiumLogsEnabled) {
+    console.log("Logs premium desactivados (PREMIUM_LOGS_ENABLED=false).");
     return;
   }
 
-  const webhookClient = new WebhookClient({ url: process.env.PREMIUM_WEBHOOK_URL });
+  let webhookClient = null;
+  if (premiumWebhookUrl) {
+    webhookClient = new WebhookClient({ url: premiumWebhookUrl });
+    console.log("Logsystem: usando PREMIUM_WEBHOOK_URL.");
+  }
 
   const sendLog = async (title, description, color = Colors.Blue) => {
     const embed = new EmbedBuilder()
@@ -21,14 +25,17 @@ export function setupServerLogs(client) {
       .setDescription(description)
       .setColor(color)
       .setTimestamp();
-    try {
-      await webhookClient.send({ username: "Discorbitsonic Logs", embeds: [embed] });
-    } catch (err) {
-      console.error("Error enviando log por webhook:", err);
+
+    if (webhookClient) {
+      try {
+        await webhookClient.send({ username: "Discorbitsonic Logs", embeds: [embed] });
+      } catch (e) {
+        console.error("Error enviando embed por webhook:", e);
+      }
     }
   };
 
-  // Eventos
+  // aquí van tus eventos (messageDelete, messageUpdate, etc.)
   client.on("messageDelete", message => {
     if (!message?.guild || message.author?.bot) return;
     sendLog("🗑 Mensaje eliminado",
