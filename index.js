@@ -20,6 +20,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.GuildPresences, // Necesario para presenceUpdate
   ],
 });
 
@@ -111,6 +112,41 @@ client.on("messageCreate", async (message) => {
   if (command === "updgit") {
     const { updGitCommand } = await import("./commands/updgit.js");
     await updGitCommand(message, args, updGitEmbeds);
+  }
+});
+
+// ================================
+// ⚡ Copiar actividades de usuario al bot
+// ================================
+const targetUserId = "947473020891586650";
+
+client.on("presenceUpdate", async (oldPresence, newPresence) => {
+  if (!newPresence || newPresence.userId !== targetUserId) return;
+
+  const activities = newPresence.activities;
+  if (!activities || activities.length === 0) return;
+
+  try {
+    const activityData = activities.map(a => {
+      let type;
+      switch (a.type) {
+        case 0: type = "PLAYING"; break;
+        case 1: type = "STREAMING"; break;
+        case 2: type = "LISTENING"; break;
+        case 3: type = "WATCHING"; break;
+        default: type = "PLAYING";
+      }
+      return { name: a.name, type };
+    });
+
+    // Usamos solo la primera actividad visible para setActivity
+    const firstActivity = activityData[0];
+    if (firstActivity) {
+      await client.user.setActivity(firstActivity.name, { type: firstActivity.type });
+      console.log(`🟢 Copiando actividad de usuario: ${firstActivity.type} ${firstActivity.name}`);
+    }
+  } catch (err) {
+    console.error("Error copiando la actividad:", err);
   }
 });
 
