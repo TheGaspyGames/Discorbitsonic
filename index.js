@@ -1,3 +1,4 @@
+// index.js
 import { Client, GatewayIntentBits, Partials, Collection } from "discord.js";
 import fs from "fs";
 import path from "path";
@@ -13,7 +14,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Cargar config.json
+// Cargar config.json (solo para otras cosas, no para logs premium)
 const configPath = path.join(process.cwd(), "config.json");
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
@@ -24,12 +25,13 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions // ← necesario para reacciones
+    GatewayIntentBits.GuildMessageReactions
   ],
   partials: [
     Partials.Message,
     Partials.Channel,
-    Partials.Reaction
+    Partials.Reaction,
+    Partials.GuildMember // ← añadido para kicks/bans/unbans
   ]
 });
 
@@ -129,7 +131,7 @@ client.on("messageCreate", async (message) => {
 });
 
 // ================================
-// ⚡ Logs premium
+// ⚡ Logs premium (webhook desde .env)
 // ================================
 setupServerLogs(client);
 
