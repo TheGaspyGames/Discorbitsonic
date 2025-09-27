@@ -1,25 +1,20 @@
 // utils/logsystem.js
-const config = require("../config.json");
-const { EmbedBuilder, Colors, WebhookClient } = require("discord.js");
+import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
+import config from "../config.json" assert { type: "json" };
 
-// ⚡ Configuración del webhook
+// Configuración del webhook
 const webhookUrl = config.PREMIUM_WEBHOOK_URL;
 const premiumEnabled = config.PREMIUM_LOGS_ENABLED;
 
-console.log("PREMIUM_LOGS_ENABLED:", premiumEnabled);
-console.log("PREMIUM_WEBHOOK_URL:", webhookUrl);
-
 const webhookClient = webhookUrl && premiumEnabled ? new WebhookClient({ url: webhookUrl }) : null;
 
-function setupServerLogs(client) {
+export function setupServerLogs(client) {
   if (!webhookClient) {
     console.log("🔕 Logs premium desactivados o webhook no configurado");
     return;
   }
 
   console.log("✅ Logsystem iniciado, webhook activo");
-
-  // Enviar mensaje de prueba al iniciar
   webhookClient.send("🚀 Logs premium activados y webhook funcionando desde logsystem.js");
 
   async function sendLog(title, description, color = Colors.Blurple) {
@@ -32,10 +27,7 @@ function setupServerLogs(client) {
     console.log(`📤 Enviado log: ${title}`);
   }
 
-  // ----------------------
-  // Eventos con debug
-  // ----------------------
-
+  // Eventos (igual que antes)
   client.on("messageDelete", async (message) => {
     console.log("💬 Evento messageDelete detectado");
     if (!message.partial && message.author?.bot) return;
@@ -70,7 +62,7 @@ function setupServerLogs(client) {
 
   client.on("guildMemberRemove", async (member) => {
     try {
-      const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 }); // MEMBER_KICK
+      const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 });
       const entry = audit.entries.first();
       if (entry && entry.target.id === member.id) {
         console.log("👢 Kick detectado vía audit log");
@@ -115,5 +107,3 @@ function setupServerLogs(client) {
     sendLog("✅ Usuario desbaneado", `**Usuario:** ${ban.user.tag} (${ban.user.id})`, Colors.Green);
   });
 }
-
-module.exports = { setupServerLogs };
