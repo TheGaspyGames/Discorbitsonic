@@ -1,5 +1,5 @@
-import config from "../config.json" assert { type: "json" };
-import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
+const config = require("../config.json");
+const { EmbedBuilder, Colors, WebhookClient } = require("discord.js");
 
 const webhookUrl = config.PREMIUM_WEBHOOK_URL;
 const premiumEnabled = config.PREMIUM_LOGS_ENABLED;
