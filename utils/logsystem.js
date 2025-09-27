@@ -1,9 +1,8 @@
-// utils/logsystem.js
+import config from "../config.json" assert { type: "json" };
 import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
 
-// leer del .env
-const webhookUrl = process.env.PREMIUM_WEBHOOK_URL;
-const premiumEnabled = process.env.PREMIUM_LOGS_ENABLED === "true";
+const webhookUrl = config.PREMIUM_WEBHOOK_URL;
+const premiumEnabled = config.PREMIUM_LOGS_ENABLED;
 
 const webhookClient = webhookUrl && premiumEnabled ? new WebhookClient({ url: webhookUrl }) : null;
 
