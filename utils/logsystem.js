@@ -1,6 +1,11 @@
 // utils/logsystem.js
 import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
-import config from "../config.json" assert { type: "json" };
+import fs from "fs";
+import path from "path";
+
+// Leer config.json con fs
+const configPath = path.join(process.cwd(), "config.json");
+const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
 // Configuración del webhook
 const webhookUrl = config.PREMIUM_WEBHOOK_URL;
@@ -29,7 +34,6 @@ export function setupServerLogs(client) {
 
   // Eventos (igual que antes)
   client.on("messageDelete", async (message) => {
-    console.log("💬 Evento messageDelete detectado");
     if (!message.partial && message.author?.bot) return;
     sendLog("🗑️ Mensaje eliminado",
       `**Autor:** ${message.author?.tag || "Desconocido"}\n**Canal:** <#${message.channel.id}>\n**Contenido:**\n${message.content || "(sin contenido)"}`,
