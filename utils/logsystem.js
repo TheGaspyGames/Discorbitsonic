@@ -148,6 +148,23 @@ export function setupServerLogs(client) {
       console.error("❌ Error guildMemberUpdate:", err);
     }
   });
+  
+  // -------------------------------
+// Creación de rol
+// -------------------------------
+client.on("roleCreate", async (role) => {
+  try {
+    const audit = await role.guild.fetchAuditLogs({ type: 29, limit: 1 }); // ROLE_CREATE
+    const entry = audit.entries.first();
+    sendLog(
+      "🆕 Nuevo rol creado",
+      `**Rol:** ${role.name}\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Permisos:** ${role.permissions.toArray().join(", ")}\n**Razón:** ${entry?.reason || "No especificada"}`,
+      Colors.Green
+    );
+  } catch (err) {
+    console.error("❌ Error roleCreate:", err);
+  }
+});
 
   // -------------------------------
   // Permisos de rol modificados
