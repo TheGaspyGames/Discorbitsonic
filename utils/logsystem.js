@@ -6,7 +6,7 @@ const premiumEnabled = config.PREMIUM_LOGS_ENABLED;
 
 const webhookClient = webhookUrl && premiumEnabled ? new WebhookClient({ url: webhookUrl }) : null;
 
-export function setupServerLogs(client) {
+function setupServerLogs(client) {
   if (!webhookClient) {
     console.log("🔕 Logs premium desactivados o webhook no configurado");
     return;
@@ -100,3 +100,6 @@ export function setupServerLogs(client) {
     sendLog("✅ Usuario desbaneado", `**Usuario:** ${ban.user.tag} (${ban.user.id})`, Colors.Green);
   });
 }
+
+// Exportar CommonJS
+module.exports = { setupServerLogs };
