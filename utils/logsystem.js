@@ -149,7 +149,7 @@ export function setupServerLogs(client) {
     }
   });
   
-  // -------------------------------
+// -------------------------------
 // Creación de rol
 // -------------------------------
 client.on("roleCreate", async (role) => {
@@ -158,7 +158,7 @@ client.on("roleCreate", async (role) => {
     const entry = audit.entries.first();
     sendLog(
       "🆕 Nuevo rol creado",
-      `**Rol:** ${role.name}\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Permisos:** ${role.permissions.toArray().join(", ")}\n**Razón:** ${entry?.reason || "No especificada"}`,
+      `**Rol:** ${role.name} (<@&${role.id}>)\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Permisos:** ${role.permissions.toArray().join(", ")}\n**Razón:** ${entry?.reason || "No especificada"}`,
       Colors.Green
     );
   } catch (err) {
@@ -184,24 +184,25 @@ client.on("roleDelete", async (role) => {
 });
   
 
-  // -------------------------------
-  // Permisos de rol modificados
-  // -------------------------------
-  client.on("roleUpdate", async (oldRole, newRole) => {
-    try {
-      if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
-        const audit = await newRole.guild.fetchAuditLogs({ type: 30, limit: 1 }); // ROLE_UPDATE
-        const entry = audit.entries.first();
-        sendLog(
-          "🔧 Permisos de rol modificados",
-          `**Rol:** ${newRole.name}\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}\n**Antes:** ${oldRole.permissions.toArray().join(", ")}\n**Después:** ${newRole.permissions.toArray().join(", ")}`,
-          Colors.Orange
-        );
-      }
-    } catch (err) {
-      console.error("❌ Error roleUpdate:", err);
+// -------------------------------
+// Permisos de rol modificados
+// -------------------------------
+client.on("roleUpdate", async (oldRole, newRole) => {
+  try {
+    if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
+      const audit = await newRole.guild.fetchAuditLogs({ type: 30, limit: 1 }); // ROLE_UPDATE
+      const entry = audit.entries.first();
+      sendLog(
+        "🔧 Permisos de rol modificados",
+        `**Rol:** ${newRole.name} (<@&${newRole.id}>)\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}\n**Antes:** ${oldRole.permissions.toArray().join(", ")}\n**Después:** ${newRole.permissions.toArray().join(", ")}`,
+        Colors.Orange
+      );
     }
-  });
+  } catch (err) {
+    console.error("❌ Error roleUpdate:", err);
+  }
+});
+
 
   // -------------------------------
   // Cambios de icono del servidor
