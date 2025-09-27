@@ -1,15 +1,10 @@
-// utils/logsystem.js
 import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
-import fs from "fs";
-import path from "path";
+import dotenv from "dotenv";
 
-// Leer config.json
-const configPath = path.join(process.cwd(), "config.json");
-const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+dotenv.config();
 
-// Configuración del webhook
-const webhookUrl = config.PREMIUM_WEBHOOK_URL;
-const premiumEnabled = config.PREMIUM_LOGS_ENABLED;
+const webhookUrl = process.env.PREMIUM_WEBHOOK_URL;
+const premiumEnabled = process.env.PREMIUM_LOGS_ENABLED === "true";
 
 const webhookClient = webhookUrl && premiumEnabled ? new WebhookClient({ url: webhookUrl }) : null;
 
@@ -19,27 +14,20 @@ export function setupServerLogs(client) {
     return;
   }
 
-  console.log("✅ Logsystem iniciado, webhook activo");
-  // Mensaje de prueba al iniciar
-  webhookClient.send("🚀 Logs premium activados y webhook funcionando desde logsystem.js");
-
   async function sendLog(title, description, color = Colors.Blurple) {
     const embed = new EmbedBuilder()
       .setTitle(title)
       .setDescription(description)
       .setColor(color)
       .setTimestamp();
-    try {
-      await webhookClient.send({ embeds: [embed] });
-      console.log(`📤 Enviado log: ${title}`);
-    } catch (err) {
-      console.error("❌ Error al enviar log:", err);
-    }
+    await webhookClient.send({ embeds: [embed] });
   }
 
-  // Mensaje eliminado
+  // -------------------------------
+  // Mensajes eliminados
+  // -------------------------------
   client.on("messageDelete", async (message) => {
-    if (message.author?.bot) return;
+    if (!message.partial && message.author?.bot) return;
     sendLog(
       "🗑️ Mensaje eliminado",
       `**Autor:** ${message.author?.tag || "Desconocido"}\n**Canal:** <#${message.channel.id}>\n**Contenido:**\n${message.content || "(sin contenido)"}`,
@@ -47,8 +35,11 @@ export function setupServerLogs(client) {
     );
   });
 
-  // Mensaje editado
+  // -------------------------------
+  // Mensajes editados
+  // -------------------------------
   client.on("messageUpdate", async (oldMessage, newMessage) => {
+    if (oldMessage.partial || newMessage.partial) return;
     if (oldMessage.author?.bot) return;
     if (oldMessage.content === newMessage.content) return;
     sendLog(
@@ -58,66 +49,129 @@ export function setupServerLogs(client) {
     );
   });
 
-  // Nuevo miembro
+  // -------------------------------
+  // Usuarios entran o salen
+  // -------------------------------
   client.on("guildMemberAdd", (member) => {
     sendLog("👋 Nuevo miembro", `**Usuario:** ${member.user.tag} (${member.id})`, Colors.Green);
   });
 
-  // Miembro salió
-  client.on("guildMemberRemove", (member) => {
-    sendLog("🚪 Miembro salió", `**Usuario:** ${member.user.tag} (${member.id})`, Colors.DarkGrey);
-  });
-
-  // Kick detectado vía audit log
   client.on("guildMemberRemove", async (member) => {
     try {
-      const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 }); // MEMBER_KICK
+      const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 }); // Kick
       const entry = audit.entries.first();
       if (entry && entry.target.id === member.id) {
         sendLog(
           "👢 Miembro expulsado",
-          `**Usuario:** ${member.user.tag} (${member.id})\n**Ejecutor:** ${entry.executor?.tag || "Desconocido"}`,
+          `**Usuario:** ${member.user.tag} (${member.id})\n**Ejecutor:** ${entry.executor?.tag || "Desconocido"}\n**Razón:** ${entry.reason || "No especificada"}`,
           Colors.Yellow
         );
+      } else {
+        sendLog("🚪 Miembro salió", `**Usuario:** ${member.user.tag} (${member.id})`, Colors.DarkGrey);
       }
     } catch (err) {
-      console.error("❌ Error audit logs kick:", err);
+      console.error("Error audit logs kick:", err);
     }
   });
 
-  // Ban
+  // -------------------------------
+  // Ban y Unban
+  // -------------------------------
   client.on("guildBanAdd", async (ban) => {
     try {
-      const audit = await ban.guild.fetchAuditLogs({ type: 22, limit: 1 });
+      const audit = await ban.guild.fetchAuditLogs({ type: 22, limit: 1 }); // MEMBER_BAN_ADD
       const entry = audit.entries.first();
-      if (entry && entry.target.id === ban.user.id) {
-        return sendLog(
-          "⛔ Usuario baneado",
-          `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Ejecutor:** ${entry.executor?.tag || "Desconocido"}`,
-          Colors.DarkRed
-        );
-      }
+      sendLog(
+        "⛔ Usuario baneado",
+        `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}`,
+        Colors.DarkRed
+      );
     } catch (err) {
-      console.error("❌ Error audit logs ban:", err);
+      console.error("Error audit logs ban:", err);
     }
-    sendLog("⛔ Usuario baneado", `**Usuario:** ${ban.user.tag} (${ban.user.id})`, Colors.DarkRed);
   });
 
-  // Unban
   client.on("guildBanRemove", async (ban) => {
     try {
-      const audit = await ban.guild.fetchAuditLogs({ type: 23, limit: 1 });
+      const audit = await ban.guild.fetchAuditLogs({ type: 23, limit: 1 }); // MEMBER_BAN_REMOVE
       const entry = audit.entries.first();
-      if (entry && entry.target.id === ban.user.id) {
-        return sendLog(
-          "✅ Usuario desbaneado",
-          `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Ejecutor:** ${entry.executor?.tag || "Desconocido"}`,
-          Colors.Green
+      sendLog(
+        "✅ Usuario desbaneado",
+        `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}`,
+        Colors.Green
+      );
+    } catch (err) {
+      console.error("Error audit logs unban:", err);
+    }
+  });
+
+  // -------------------------------
+  // Roles añadidos/removidos y nickname
+  // -------------------------------
+  client.on("guildMemberUpdate", async (oldMember, newMember) => {
+    try {
+      const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
+      const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
+      const changes = [];
+
+      if (addedRoles.size || removedRoles.size) {
+        const audit = await newMember.guild.fetchAuditLogs({ type: 25, limit: 1 });
+        const entry = audit.entries.first();
+
+        changes.push(
+          `**Roles añadidos:** ${addedRoles.size ? addedRoles.map(r => r.name).join(", ") : "Ninguno"}\n` +
+          `**Roles removidos:** ${removedRoles.size ? removedRoles.map(r => r.name).join(", ") : "Ninguno"}\n` +
+          `**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n` +
+          `**Razón:** ${entry?.reason || "No especificada"}`
+        );
+
+        sendLog("🛠️ Roles modificados", changes.join("\n"), Colors.Green);
+      }
+
+      if (oldMember.nickname !== newMember.nickname) {
+        sendLog(
+          "✏️ Nick cambiado",
+          `**Usuario:** ${newMember.user.tag}\n**Antes:** ${oldMember.nickname || "(sin nick)"}\n**Después:** ${newMember.nickname || "(sin nick)"}`,
+          Colors.Orange
+        );
+      }
+
+      if (oldMember.user.username !== newMember.user.username) {
+        sendLog(
+          "🖋️ Nombre de Discord cambiado",
+          `**Antes:** ${oldMember.user.username}\n**Después:** ${newMember.user.username}`,
+          Colors.Orange
+        );
+      }
+
+      if (oldMember.user.displayAvatarURL() !== newMember.user.displayAvatarURL()) {
+        sendLog(
+          "🖼️ Avatar de usuario cambiado",
+          `**Usuario:** ${newMember.user.tag}`,
+          Colors.Orange
         );
       }
     } catch (err) {
-      console.error("❌ Error audit logs unban:", err);
+      console.error("❌ Error guildMemberUpdate:", err);
     }
-    sendLog("✅ Usuario desbaneado", `**Usuario:** ${ban.user.tag} (${ban.user.id})`, Colors.Green);
+  });
+
+  // -------------------------------
+  // Cambios en permisos de rol
+  // -------------------------------
+  client.on("roleUpdate", async (oldRole, newRole) => {
+    try {
+      if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
+        const audit = await newRole.guild.fetchAuditLogs({ type: 30, limit: 1 });
+        const entry = audit.entries.first();
+        sendLog(
+          "🔧 Permisos de rol modificados",
+          `**Rol:** ${newRole.name}\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}\n**Antes:** ${oldRole.permissions.toArray().join(", ")}\n**Después:** ${newRole.permissions.toArray().join(", ")}`,
+          Colors.Orange
+        );
+      }
+    } catch (err) {
+      console.error("❌ Error roleUpdate:", err);
+    }
   });
 }
