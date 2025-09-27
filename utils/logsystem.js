@@ -167,6 +167,24 @@ client.on("roleCreate", async (role) => {
 });
 
   // -------------------------------
+// Eliminación de rol
+// -------------------------------
+client.on("roleDelete", async (role) => {
+  try {
+    const audit = await role.guild.fetchAuditLogs({ type: 31, limit: 1 }); // ROLE_DELETE
+    const entry = audit.entries.first();
+    sendLog(
+      "❌ Rol eliminado",
+      `**Rol:** ${role.name}\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Permisos:** ${role.permissions.toArray().join(", ")}\n**Razón:** ${entry?.reason || "No especificada"}`,
+      Colors.Red
+    );
+  } catch (err) {
+    console.error("❌ Error roleDelete:", err);
+  }
+});
+  
+
+  // -------------------------------
   // Permisos de rol modificados
   // -------------------------------
   client.on("roleUpdate", async (oldRole, newRole) => {
