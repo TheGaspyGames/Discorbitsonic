@@ -1,3 +1,7 @@
+/**
+ * Dummy para setLiveActivity (no implementado)
+ */
+export function setLiveActivity() {}
 import { EmbedBuilder, Colors } from "discord.js";
 import config from "../config.json" with { type: "json" };
 import { configManager } from "./configManager.js";
