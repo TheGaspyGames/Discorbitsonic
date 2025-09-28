@@ -1,6 +1,4 @@
 import { EmbedBuilder, Colors } from "discord.js";
-// Para Node.js 18+ fetch es global, pero para compatibilidad:
-import { fetch } from 'node-fetch';
 import config from "../config.json" with { type: "json" };
 import { configManager } from "./configManager.js";
 

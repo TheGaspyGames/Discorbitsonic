@@ -15,12 +15,23 @@ export function setupServerLogs(client) {
     return;
   }
 
-  async function sendLog(title, description, color = Colors.Blurple) {
+  async function sendLog(title, description, color = Colors.Blurple, fields = [], options = {}) {
     const embed = new EmbedBuilder()
       .setTitle(title)
       .setDescription(description)
       .setColor(color)
-      .setTimestamp();
+      .setTimestamp()
+      .setFooter({
+        text: "Discorbitsonic Premium Logs",
+        iconURL: "https://cdn.discordapp.com/icons/1141108860018325635/7e2e2c2e2b2e2b2e2b2e2b2e2b2e2b2e.webp" // Cambia por tu icono premium
+      })
+      .setAuthor({
+        name: "Sistema de Seguridad Avanzado",
+        iconURL: "https://cdn.discordapp.com/emojis/1161709152784171068.webp?size=96&quality=lossless"
+      });
+    if (fields.length) embed.addFields(fields);
+    if (options.thumbnail) embed.setThumbnail(options.thumbnail);
+    if (options.image) embed.setImage(options.image);
     await webhookClient.send({ embeds: [embed] });
   }
 
@@ -31,8 +42,14 @@ export function setupServerLogs(client) {
     if (!message.partial && message.author?.bot) return;
     sendLog(
       "🗑️ Mensaje eliminado",
-      `**Autor:** ${message.author?.tag || "Desconocido"}\n**Canal:** <#${message.channel.id}>\n**Contenido:** ${message.content || "(sin contenido)"}`,
-      Colors.Red
+      `Un mensaje fue eliminado en el servidor.`,
+      Colors.Red,
+      [
+        { name: "Autor", value: message.author?.tag || "Desconocido", inline: true },
+        { name: "Canal", value: `<#${message.channel.id}>`, inline: true },
+        { name: "Contenido", value: message.content || "(sin contenido)", inline: false }
+      ],
+      { thumbnail: message.author?.displayAvatarURL?.() }
     );
   });
 
@@ -42,8 +59,15 @@ export function setupServerLogs(client) {
     if (oldMessage.content === newMessage.content) return;
     sendLog(
       "✏️ Mensaje editado",
-      `**Autor:** ${oldMessage.author.tag}\n**Canal:** <#${oldMessage.channel.id}>\n**Antes:** ${oldMessage.content}\n**Después:** ${newMessage.content}`,
-      Colors.Orange
+      `Un mensaje fue editado en el servidor.`,
+      Colors.Orange,
+      [
+        { name: "Autor", value: oldMessage.author.tag, inline: true },
+        { name: "Canal", value: `<#${oldMessage.channel.id}>`, inline: true },
+        { name: "Antes", value: oldMessage.content, inline: false },
+        { name: "Después", value: newMessage.content, inline: false }
+      ],
+      { thumbnail: oldMessage.author.displayAvatarURL?.() }
     );
   });
 
@@ -51,7 +75,15 @@ export function setupServerLogs(client) {
   // Usuarios entran o salen / kick
   // -------------------------------
   client.on("guildMemberAdd", (member) => {
-    sendLog("👋 Nuevo miembro", `**Usuario:** ${member.user.tag} (${member.id})`, Colors.Green);
+    sendLog(
+      "👋 Nuevo miembro",
+      `Un usuario se ha unido al servidor.`,
+      Colors.Green,
+      [
+        { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
+      ],
+      { thumbnail: member.user.displayAvatarURL?.() }
+    );
   });
 
   client.on("guildMemberRemove", async (member) => {
@@ -61,11 +93,25 @@ export function setupServerLogs(client) {
       if (entry && entry.target.id === member.id) {
         sendLog(
           "👢 Miembro expulsado",
-          `**Usuario:** ${member.user.tag} (${member.id})\n**Ejecutor:** ${entry.executor?.tag || "Desconocido"}\n**Razón:** ${entry.reason || "No especificada"}`,
-          Colors.Yellow
+          `Un usuario fue expulsado del servidor.`,
+          Colors.Yellow,
+          [
+            { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true },
+            { name: "Ejecutor", value: entry.executor?.tag || "Desconocido", inline: true },
+            { name: "Razón", value: entry.reason || "No especificada", inline: false }
+          ],
+          { thumbnail: member.user.displayAvatarURL?.() }
         );
       } else {
-        sendLog("🚪 Miembro salió", `**Usuario:** ${member.user.tag} (${member.id})`, Colors.DarkGrey);
+        sendLog(
+          "🚪 Miembro salió",
+          `Un usuario salió del servidor.`,
+          Colors.DarkGrey,
+          [
+            { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
+          ],
+          { thumbnail: member.user.displayAvatarURL?.() }
+        );
       }
     } catch (err) {
       console.error("Error audit logs kick:", err);
@@ -81,8 +127,14 @@ export function setupServerLogs(client) {
       const entry = audit.entries.first();
       sendLog(
         "⛔ Usuario baneado",
-        `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}`,
-        Colors.DarkRed
+        `Un usuario fue baneado del servidor.`,
+        Colors.DarkRed,
+        [
+          { name: "Usuario", value: `${ban.user.tag} (${ban.user.id})`, inline: true },
+          { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
+          { name: "Razón", value: entry?.reason || "No especificada", inline: false }
+        ],
+        { thumbnail: ban.user.displayAvatarURL?.() }
       );
     } catch (err) {
       console.error("Error audit logs ban:", err);
@@ -95,8 +147,14 @@ export function setupServerLogs(client) {
       const entry = audit.entries.first();
       sendLog(
         "✅ Usuario desbaneado",
-        `**Usuario:** ${ban.user.tag} (${ban.user.id})\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}`,
-        Colors.Green
+        `Un usuario fue desbaneado del servidor.`,
+        Colors.Green,
+        [
+          { name: "Usuario", value: `${ban.user.tag} (${ban.user.id})`, inline: true },
+          { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
+          { name: "Razón", value: entry?.reason || "No especificada", inline: false }
+        ],
+        { thumbnail: ban.user.displayAvatarURL?.() }
       );
     } catch (err) {
       console.error("Error audit logs unban:", err);
@@ -116,32 +174,55 @@ export function setupServerLogs(client) {
         const entry = audit.entries.first();
         sendLog(
           "🛠️ Roles modificados",
-          `**Usuario:** ${newMember.user.tag}\n**Roles añadidos:** ${addedRoles.size ? addedRoles.map(r => r.name).join(", ") : "Ninguno"}\n**Roles removidos:** ${removedRoles.size ? removedRoles.map(r => r.name).join(", ") : "Ninguno"}\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}`,
-          Colors.Green
+          `Se han modificado los roles de un usuario.`,
+          Colors.Green,
+          [
+            { name: "Usuario", value: newMember.user.tag, inline: true },
+            { name: "Roles añadidos", value: addedRoles.size ? addedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
+            { name: "Roles removidos", value: removedRoles.size ? removedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
+            { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
+            { name: "Razón", value: entry?.reason || "No especificada", inline: false }
+          ],
+          { thumbnail: newMember.user.displayAvatarURL?.() }
         );
       }
 
       if (oldMember.nickname !== newMember.nickname) {
         sendLog(
           "✏️ Nick cambiado",
-          `**Usuario:** ${newMember.user.tag}\n**Antes:** ${oldMember.nickname || "(sin nick)"}\n**Después:** ${newMember.nickname || "(sin nick)"}`,
-          Colors.Orange
+          `Un usuario cambió su apodo.`,
+          Colors.Orange,
+          [
+            { name: "Usuario", value: newMember.user.tag, inline: true },
+            { name: "Antes", value: oldMember.nickname || "(sin nick)", inline: true },
+            { name: "Después", value: newMember.nickname || "(sin nick)", inline: true }
+          ],
+          { thumbnail: newMember.user.displayAvatarURL?.() }
         );
       }
 
       if (oldMember.user.username !== newMember.user.username) {
         sendLog(
           "🖋️ Nombre de Discord cambiado",
-          `**Antes:** ${oldMember.user.username}\n**Después:** ${newMember.user.username}`,
-          Colors.Orange
+          `Un usuario cambió su nombre de Discord.`,
+          Colors.Orange,
+          [
+            { name: "Antes", value: oldMember.user.username, inline: true },
+            { name: "Después", value: newMember.user.username, inline: true }
+          ],
+          { thumbnail: newMember.user.displayAvatarURL?.() }
         );
       }
 
       if (oldMember.user.displayAvatarURL() !== newMember.user.displayAvatarURL()) {
         sendLog(
           "🖼️ Avatar de usuario cambiado",
-          `**Usuario:** ${newMember.user.tag}`,
-          Colors.Orange
+          `Un usuario cambió su avatar.`,
+          Colors.Orange,
+          [
+            { name: "Usuario", value: newMember.user.tag, inline: true }
+          ],
+          { thumbnail: newMember.user.displayAvatarURL?.() }
         );
       }
     } catch (err) {
@@ -158,8 +239,14 @@ client.on("roleCreate", async (role) => {
     const entry = audit.entries.first();
     sendLog(
       "🆕 Nuevo rol creado",
-      `**Rol:** ${role.name} (<@&${role.id}>)\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Permisos:** ${role.permissions.toArray().join(", ")}\n**Razón:** ${entry?.reason || "No especificada"}`,
-      Colors.Green
+      `Se ha creado un nuevo rol en el servidor.`,
+      Colors.Green,
+      [
+        { name: "Rol", value: `${role.name} (<@&${role.id}>)`, inline: true },
+        { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
+        { name: "Permisos", value: role.permissions.toArray().join(", "), inline: false },
+        { name: "Razón", value: entry?.reason || "No especificada", inline: false }
+      ]
     );
   } catch (err) {
     console.error("❌ Error roleCreate:", err);
@@ -175,8 +262,14 @@ client.on("roleDelete", async (role) => {
     const entry = audit.entries.first();
     sendLog(
       "❌ Rol eliminado",
-      `**Rol:** ${role.name}\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Permisos:** ${role.permissions.toArray().join(", ")}\n**Razón:** ${entry?.reason || "No especificada"}`,
-      Colors.Red
+      `Un rol fue eliminado del servidor.`,
+      Colors.Red,
+      [
+        { name: "Rol", value: role.name, inline: true },
+        { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
+        { name: "Permisos", value: role.permissions.toArray().join(", "), inline: false },
+        { name: "Razón", value: entry?.reason || "No especificada", inline: false }
+      ]
     );
   } catch (err) {
     console.error("❌ Error roleDelete:", err);
@@ -194,8 +287,15 @@ client.on("roleUpdate", async (oldRole, newRole) => {
       const entry = audit.entries.first();
       sendLog(
         "🔧 Permisos de rol modificados",
-        `**Rol:** ${newRole.name} (<@&${newRole.id}>)\n**Ejecutor:** ${entry?.executor?.tag || "Desconocido"}\n**Razón:** ${entry?.reason || "No especificada"}\n**Antes:** ${oldRole.permissions.toArray().join(", ")}\n**Después:** ${newRole.permissions.toArray().join(", ")}`,
-        Colors.Orange
+        "Se han modificado los permisos de un rol.",
+        Colors.Orange,
+        [
+          { name: "Rol", value: `${newRole.name} (<@&${newRole.id}>)`, inline: true },
+          { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
+          { name: "Antes", value: oldRole.permissions.toArray().join(", "), inline: false },
+          { name: "Después", value: newRole.permissions.toArray().join(", "), inline: false },
+          { name: "Razón", value: entry?.reason || "No especificada", inline: false }
+        ]
       );
     }
   } catch (err) {
@@ -212,8 +312,12 @@ client.on("roleUpdate", async (oldRole, newRole) => {
       if (oldGuild.iconURL() !== newGuild.iconURL()) {
         sendLog(
           "🖼️ Icono del servidor cambiado",
-          `**Servidor:** ${newGuild.name}`,
-          Colors.Orange
+          `El icono del servidor ha sido actualizado.`,
+          Colors.Orange,
+          [
+            { name: "Servidor", value: newGuild.name, inline: true }
+          ],
+          { thumbnail: newGuild.iconURL?.() }
         );
       }
     } catch (err) {
