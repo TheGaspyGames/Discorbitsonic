@@ -26,7 +26,7 @@ export function setupServerLogs(client) {
         iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif" // Cambia por tu icono premium
       })
       .setAuthor({
-        name: "Sistema de Seguridad Avanzado",
+        name: "LOGS PREMIUM DE 500€/mes - Soporte 24/7 - Sin límites - Actualizaciones constantes - Contacto: TheGaspy#1337",
         iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif"
       });
     if (fields.length) embed.addFields(fields);
