@@ -3,9 +3,9 @@ import { sendCommandLog } from "../utils/utilities.js";
 
 const OWNER_ID = "684395420004253729";
 
-const data = new ContextMenuCommandBuilder()
-  .setName("Trollear usuario")
-  .setType(ApplicationCommandType.User);
+const data = new SlashCommandBuilder()
+  .setName("troll")
+  .setDescription("envia un gif troll divertido en el canal.");
 
 async function execute(interaction) {
   // Solo el owner puede usar el troll real
