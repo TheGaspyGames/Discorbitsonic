@@ -88,10 +88,15 @@ export async function updGitCommand(message, args, updGitEmbeds) {
           // Verificar si ya está en la última versión (SHA)
           const currentSha = autoUpdateChannels.get(channelId)?.lastCommitSha;
           let localSha = null;
+          const path = GIT_PATH.replace(/^~(?=\/|$)/, process.env.HOME || process.env.USERPROFILE || "");
+          const fs = await import('fs');
+          if (!fs.existsSync(path)) {
+            return i.reply({ content: `❌ La carpeta del repositorio no existe: ${path}\nVerifica la ruta antes de actualizar.`, ephemeral: true });
+          }
           try {
             // Obtener SHA local
             await new Promise((resolve, reject) => {
-              exec(`cd ${GIT_PATH} && git rev-parse HEAD`, (err, stdout, stderr) => {
+              exec(`cd ${path} && git rev-parse HEAD`, (err, stdout, stderr) => {
                 if (err) return reject(err);
                 localSha = stdout.trim();
                 resolve();
@@ -106,7 +111,7 @@ export async function updGitCommand(message, args, updGitEmbeds) {
 
           i.reply({ content: "⬇️ Descargando y aplicando actualización...", ephemeral: true });
 
-          exec(`cd ${GIT_PATH} && git pull`, (err, stdout, stderr) => {
+          exec(`cd ${path} && git pull`, (err, stdout, stderr) => {
             if (err) {
               console.error("Error aplicando update:", err, stderr);
               sentMessage.edit({ content: `❌ Error aplicando la actualización!\n${stderr || err.message}`, components: [] });
