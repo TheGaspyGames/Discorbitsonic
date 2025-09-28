@@ -1,17 +1,6 @@
 /**
  * Fetches recent commits from the GitHub repo (para !updgit)
  */
-export async function getRecentCommits() {
-  try {
-    const res = await fetch("https://api.github.com/repos/TheGaspyGames/Discorbitsonic/commits");
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data.slice(0, 2); // Solo los 2 commits más recientes
-  } catch (error) {
-    console.error("Error al obtener los commits:", error);
-    return [];
-  }
-}
 /**
  * Dummy para setLiveActivity (no implementado)
  */
@@ -195,7 +184,7 @@ export async function sendCommandLog(client, commandName, user, additionalInfo =
 /**
  * Fetches recent commits from the GitHub repo (for !updgit)
  */
-export async function fetchRecentCommits() {
+export async function getRecentCommits() {
   try {
     const res = await fetch("https://api.github.com/repos/TheGaspyGames/Discorbitsonic/commits");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
