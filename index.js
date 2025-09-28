@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import https from "https";
 import dotenv from "dotenv";
 import { setupServerLogs } from "./utils/logsystem.js";
+import { monitorYouTubeLive } from "./youtube/youtubeLive.js";
 
 // Cargar .env
 dotenv.config();
@@ -139,3 +140,5 @@ setupServerLogs(client);
 // Login con token del .env
 // ================================
 client.login(process.env.DISCORD_TOKEN);
+
+setInterval(() => monitorYouTubeLive(client), 30_000);

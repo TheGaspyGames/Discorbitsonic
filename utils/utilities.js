@@ -175,19 +175,6 @@ export async function sendCommandLog(client, commandName, user, additionalInfo =
 }
 
 /**
- * Sets bot activity to "playing geometry dash"
- */
-export async function setLiveActivity(client) {
-  try {
-    await client.user.setActivity("geometry dash", { type: "PLAYING" });
-    console.log('Activity set: playing geometry dash');
-  } catch (error) {
-    console.log(`Error updating activity: ${error}`);
-    await sendErrorReport(client, `Error updating live activity: ${error}`);
-  }
-}
-
-/**
  * Fetches recent commits from the GitHub repo (for !updgit)
  */
 export async function getRecentCommits() {
