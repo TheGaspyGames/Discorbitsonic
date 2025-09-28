@@ -78,9 +78,33 @@ async function execute(interaction) {
   };
   let selectedChannelId = channels[0].value;
 
+
+  // Función para construir el embed de vista previa
+  function buildPreviewEmbed() {
+    const embed = new EmbedBuilder()
+      .setColor(embedData.color || 0x23272A);
+    if (embedData.title) embed.setTitle(embedData.title);
+    if (embedData.description) embed.setDescription(embedData.description);
+    if (embedData.url) embed.setURL(embedData.url);
+    if (embedData.image) embed.setImage(embedData.image);
+    if (embedData.thumbnail) embed.setThumbnail(embedData.thumbnail);
+    if (embedData.author_name) embed.setAuthor({
+      name: embedData.author_name,
+      url: embedData.author_url || undefined,
+      iconURL: embedData.author_icon || undefined
+    });
+    if (embedData.footer_text) embed.setFooter({
+      text: embedData.footer_text,
+      iconURL: embedData.footer_icon || undefined
+    });
+    return embed;
+  }
+
+  // Enviar mensaje inicial con vista previa
   await interaction.reply({
     content: "Selecciona el canal y edita el contenido del embed:",
     components: [row1, row2, row3, row4],
+    embeds: [buildPreviewEmbed()],
     ephemeral: true
   });
 
@@ -94,7 +118,11 @@ async function execute(interaction) {
   collector.on("collect", async i => {
     if (i.customId === "select_channel_embed") {
       selectedChannelId = i.values[0];
-      await i.deferUpdate();
+      await i.update({
+        content: "Selecciona el canal y edita el contenido del embed:",
+        components: [row1, row2, row3, row4],
+        embeds: [buildPreviewEmbed()]
+      });
     }
     if (i.customId === "edit_content_embed") {
       // Modal para editar contenido
@@ -275,7 +303,11 @@ async function execute(interaction) {
       embedData.title = modalInt.fields.getTextInputValue("embed_title");
       embedData.description = modalInt.fields.getTextInputValue("embed_description");
       embedData.url = modalInt.fields.getTextInputValue("embed_url");
-      await modalInt.reply({ content: "✅ Contenido del embed actualizado. Puedes enviarlo o seguir editando.", ephemeral: true });
+      await modalInt.update({
+        content: "Selecciona el canal y edita el contenido del embed:",
+        components: [row1, row2, row3, row4],
+        embeds: [buildPreviewEmbed()]
+      });
     }
     // Color
     if (modalInt.customId === "modal_edit_embed_color") {
@@ -294,26 +326,42 @@ async function execute(interaction) {
           embedData.color = 0x23272A;
         }
       }
-      await modalInt.reply({ content: "✅ Color del embed actualizado.", ephemeral: true });
+      await modalInt.update({
+        content: "Selecciona el canal y edita el contenido del embed:",
+        components: [row1, row2, row3, row4],
+        embeds: [buildPreviewEmbed()]
+      });
     }
     // Imágenes
     if (modalInt.customId === "modal_edit_embed_images") {
       embedData.image = modalInt.fields.getTextInputValue("embed_image");
       embedData.thumbnail = modalInt.fields.getTextInputValue("embed_thumbnail");
-      await modalInt.reply({ content: "✅ Imágenes del embed actualizadas.", ephemeral: true });
+      await modalInt.update({
+        content: "Selecciona el canal y edita el contenido del embed:",
+        components: [row1, row2, row3, row4],
+        embeds: [buildPreviewEmbed()]
+      });
     }
     // Autor
     if (modalInt.customId === "modal_edit_embed_author") {
       embedData.author_name = modalInt.fields.getTextInputValue("embed_author_name");
       embedData.author_url = modalInt.fields.getTextInputValue("embed_author_url");
       embedData.author_icon = modalInt.fields.getTextInputValue("embed_author_icon");
-      await modalInt.reply({ content: "✅ Autor del embed actualizado.", ephemeral: true });
+      await modalInt.update({
+        content: "Selecciona el canal y edita el contenido del embed:",
+        components: [row1, row2, row3, row4],
+        embeds: [buildPreviewEmbed()]
+      });
     }
     // Pie de página
     if (modalInt.customId === "modal_edit_embed_footer") {
       embedData.footer_text = modalInt.fields.getTextInputValue("embed_footer_text");
       embedData.footer_icon = modalInt.fields.getTextInputValue("embed_footer_icon");
-      await modalInt.reply({ content: "✅ Pie de página del embed actualizado.", ephemeral: true });
+      await modalInt.update({
+        content: "Selecciona el canal y edita el contenido del embed:",
+        components: [row1, row2, row3, row4],
+        embeds: [buildPreviewEmbed()]
+      });
     }
   });
 }
