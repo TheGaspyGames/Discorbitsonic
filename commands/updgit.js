@@ -1,9 +1,24 @@
 import { exec } from "child_process";
+import fs from "fs";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import config from "../config.json" with { type: "json" };
 import { getRecentCommits, isAuthorized } from "../utils/utilities.js";
 
 const autoUpdateChannels = new Map();
+const AUTO_UPDATE_FILE = "./autoUpdateChannel.json";
+const GIT_PATH = "~/storage/downloads/discorbitsonic";
+const PM2_PROCESS = "bitsonic";
+
+// Cargar canal guardado
+let savedChannelId = null;
+try {
+  if (fs.existsSync(AUTO_UPDATE_FILE)) {
+    const data = JSON.parse(fs.readFileSync(AUTO_UPDATE_FILE, "utf8"));
+    if (data && data.channelId) savedChannelId = data.channelId;
+  }
+} catch (e) {
+  console.error("Error leyendo canal auto-update:", e);
+}
 
 export async function updGitCommand(message, args, updGitEmbeds) {
   // Verificar LOG_CHANNEL_ID
@@ -11,13 +26,24 @@ export async function updGitCommand(message, args, updGitEmbeds) {
     return message.reply("❌ Auto-updates solo se pueden activar si el LOG_CHANNEL_ID es el correcto.");
   }
 
-  const channelId = message.channel.id;
+
+  let channelId = message.channel.id;
+  // Si ya hay un canal guardado, usarlo siempre
+  if (savedChannelId) channelId = savedChannelId;
 
   if (autoUpdateChannels.has(channelId)) {
     return message.reply("✅ El modo auto-updates ya está activado en este canal.");
   }
 
-  message.reply("🚀 Modo auto-updates activado! El bot ahora actualizará automáticamente los commits recientes.");
+  // Guardar canal para siempre
+  try {
+    fs.writeFileSync(AUTO_UPDATE_FILE, JSON.stringify({ channelId }), "utf8");
+    savedChannelId = channelId;
+  } catch (e) {
+    console.error("No se pudo guardar el canal de auto-update:", e);
+  }
+
+  message.reply(`🚀 Modo auto-updates activado en <#${channelId}>! El bot ahora actualizará automáticamente los commits recientes.`);
 
   const autoUpdate = async () => {
     try {
@@ -61,14 +87,23 @@ export async function updGitCommand(message, args, updGitEmbeds) {
 
           i.reply({ content: "⬇️ Descargando y aplicando actualización...", ephemeral: true });
 
-          exec("git pull", (err, stdout, stderr) => {
+          exec(`cd ${GIT_PATH} && git pull`, (err, stdout, stderr) => {
             if (err) {
-              console.error("Error aplicando update:", err);
-              sentMessage.edit({ content: "❌ Error aplicando la actualización!", components: [] });
+              console.error("Error aplicando update:", err, stderr);
+              sentMessage.edit({ content: `❌ Error aplicando la actualización!\n${stderr || err.message}`, components: [] });
               return;
             }
             console.log(stdout);
-            sentMessage.edit({ content: "✅ Actualización aplicada correctamente!", components: [] });
+            sentMessage.edit({ content: "✅ Actualización aplicada correctamente! Reiniciando bot...", components: [] });
+            // Reiniciar con pm2
+            exec(`pm2 restart ${PM2_PROCESS}`, (err2, stdout2, stderr2) => {
+              if (err2) {
+                console.error("Error reiniciando pm2:", err2, stderr2);
+                sentMessage.channel.send(`❌ Error reiniciando el bot con pm2: ${stderr2 || err2.message}`);
+                return;
+              }
+              sentMessage.channel.send("♻️ Bot reiniciado correctamente con pm2!");
+            });
           });
         }
 
