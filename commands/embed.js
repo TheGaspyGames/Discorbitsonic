@@ -78,9 +78,31 @@ async function execute(interaction) {
   };
   let selectedChannelId = channels[0].value;
 
+
+  // Función para construir la vista previa del embed
+  function buildPreviewEmbed() {
+    const preview = new EmbedBuilder().setColor(embedData.color || 0x23272A);
+    if (embedData.title) preview.setTitle(embedData.title);
+    if (embedData.description) preview.setDescription(embedData.description);
+    if (embedData.url) preview.setURL(embedData.url);
+    if (embedData.image) preview.setImage(embedData.image);
+    if (embedData.thumbnail) preview.setThumbnail(embedData.thumbnail);
+    if (embedData.author_name) preview.setAuthor({
+      name: embedData.author_name,
+      url: embedData.author_url || undefined,
+      iconURL: embedData.author_icon || undefined
+    });
+    if (embedData.footer_text) preview.setFooter({
+      text: embedData.footer_text,
+      iconURL: embedData.footer_icon || undefined
+    });
+    return preview;
+  }
+
   await interaction.reply({
     content: "Selecciona el canal y edita el contenido del embed:",
     components: [row1, row2, row3, row4],
+    embeds: [buildPreviewEmbed()],
     ephemeral: true
   });
 
@@ -94,7 +116,12 @@ async function execute(interaction) {
   collector.on("collect", async i => {
     if (i.customId === "select_channel_embed") {
       selectedChannelId = i.values[0];
-      await i.deferUpdate();
+      await i.update({
+        content: "Selecciona el canal y edita el contenido del embed:",
+        components: [row1, row2, row3, row4],
+        embeds: [buildPreviewEmbed()],
+        ephemeral: true
+      });
     }
     if (i.customId === "edit_content_embed") {
       // Modal para editar contenido
@@ -239,22 +266,7 @@ async function execute(interaction) {
         await i.reply({ content: "❌ Canal no encontrado.", ephemeral: true });
         return;
       }
-      const embed = new EmbedBuilder()
-        .setColor(embedData.color || 0x23272A);
-      if (embedData.title) embed.setTitle(embedData.title);
-      if (embedData.description) embed.setDescription(embedData.description);
-      if (embedData.url) embed.setURL(embedData.url);
-      if (embedData.image) embed.setImage(embedData.image);
-      if (embedData.thumbnail) embed.setThumbnail(embedData.thumbnail);
-      if (embedData.author_name) embed.setAuthor({
-        name: embedData.author_name,
-        url: embedData.author_url || undefined,
-        iconURL: embedData.author_icon || undefined
-      });
-      if (embedData.footer_text) embed.setFooter({
-        text: embedData.footer_text,
-        iconURL: embedData.footer_icon || undefined
-      });
+      const embed = buildPreviewEmbed();
       await channel.send({ embeds: [embed] });
       await i.update({ content: `✅ Embed enviado a <#${channel.id}>`, components: [] });
       collector.stop();
@@ -270,11 +282,13 @@ async function execute(interaction) {
   interaction.client.on("interactionCreate", async modalInt => {
     if (!modalInt.isModalSubmit()) return;
     if (modalInt.user.id !== interaction.user.id) return;
+    let updated = false;
     // Contenido
     if (modalInt.customId === "modal_edit_embed_content") {
       embedData.title = modalInt.fields.getTextInputValue("embed_title");
       embedData.description = modalInt.fields.getTextInputValue("embed_description");
       embedData.url = modalInt.fields.getTextInputValue("embed_url");
+      updated = true;
       await modalInt.reply({ content: "✅ Contenido del embed actualizado. Puedes enviarlo o seguir editando.", ephemeral: true });
     }
     // Color
@@ -294,12 +308,14 @@ async function execute(interaction) {
           embedData.color = 0x23272A;
         }
       }
+      updated = true;
       await modalInt.reply({ content: "✅ Color del embed actualizado.", ephemeral: true });
     }
     // Imágenes
     if (modalInt.customId === "modal_edit_embed_images") {
       embedData.image = modalInt.fields.getTextInputValue("embed_image");
       embedData.thumbnail = modalInt.fields.getTextInputValue("embed_thumbnail");
+      updated = true;
       await modalInt.reply({ content: "✅ Imágenes del embed actualizadas.", ephemeral: true });
     }
     // Autor
@@ -307,13 +323,25 @@ async function execute(interaction) {
       embedData.author_name = modalInt.fields.getTextInputValue("embed_author_name");
       embedData.author_url = modalInt.fields.getTextInputValue("embed_author_url");
       embedData.author_icon = modalInt.fields.getTextInputValue("embed_author_icon");
+      updated = true;
       await modalInt.reply({ content: "✅ Autor del embed actualizado.", ephemeral: true });
     }
     // Pie de página
     if (modalInt.customId === "modal_edit_embed_footer") {
       embedData.footer_text = modalInt.fields.getTextInputValue("embed_footer_text");
       embedData.footer_icon = modalInt.fields.getTextInputValue("embed_footer_icon");
+      updated = true;
       await modalInt.reply({ content: "✅ Pie de página del embed actualizado.", ephemeral: true });
+    }
+    // Actualizar la vista previa si hubo cambios
+    if (updated) {
+      try {
+        await msg.edit({
+          content: "Selecciona el canal y edita el contenido del embed:",
+          components: [row1, row2, row3, row4],
+          embeds: [buildPreviewEmbed()]
+        });
+      } catch {}
     }
   });
 }
