@@ -1,11 +1,16 @@
-import { ContextMenuCommandBuilder, ApplicationCommandType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import { sendCommandLog } from "../utils/utilities.js";
 
 const OWNER_ID = "684395420004253729";
 
 const data = new SlashCommandBuilder()
   .setName("troll")
-  .setDescription("envia un gif troll divertido en el canal.");
+  .setDescription("Envía un gif troll divertido en el canal.")
+  .addUserOption(option =>
+    option.setName("usuario")
+      .setDescription("El usuario objetivo")
+      .setRequired(true)
+  );
 
 async function execute(interaction) {
   // Solo el owner puede usar el troll real
@@ -19,7 +24,7 @@ async function execute(interaction) {
   }
 
   // Obtener usuario objetivo
-  const target = interaction.targetUser;
+  const target = interaction.options.getUser("usuario");
   if (!target) {
     await interaction.reply({ content: "❌ No se pudo obtener el usuario.", ephemeral: true });
     return;
@@ -38,9 +43,11 @@ async function execute(interaction) {
     "Respuestas rápidas a los mismos temas",
     "Interacción frecuente con los mismos usuarios"
   ];
+
   // Elegir 3 motivos al azar
   const motivosElegidos = motivos.sort(() => 0.5 - Math.random()).slice(0, 3);
   const randomNum = Math.floor(Math.random() * 6) + 1;
+
   const embed = new EmbedBuilder()
     .setTitle("🚨 Aviso de Seguridad Discord (IA)")
     .setColor("Red")
