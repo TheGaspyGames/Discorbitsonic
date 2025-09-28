@@ -90,7 +90,8 @@ export function setupServerLogs(client) {
     try {
       const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 }); // Kick
       const entry = audit.entries.first();
-      if (entry && entry.target.id === member.id) {
+      // Si fue kick, solo loguear el kick y no el 'salió'
+      if (entry && entry.target.id === member.id && Date.now() - entry.createdTimestamp < 5000) {
         sendLog(
           "👢 Miembro expulsado",
           `Un usuario fue expulsado del servidor.`,
