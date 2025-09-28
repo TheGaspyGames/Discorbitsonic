@@ -1,11 +1,11 @@
 
-import { SlashCommandBuilder, EmbedBuilder, ChannelType, ActionRowBuilder, StringSelectMenuBuilder, ComponentType } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, ChannelType, ActionRowBuilder, StringSelectMenuBuilder, ComponentType, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, InteractionType } from "discord.js";
 import { sendCommandLog } from "../utils/utilities.js";
 import { configManager } from "../utils/configManager.js";
 
 const data = new SlashCommandBuilder()
   .setName("embed")
-  .setDescription("Envía los requisitos para ser Media en un canal seleccionado.");
+  .setDescription("Crea y envía un embed personalizado a un canal seleccionado.");
 
 async function execute(interaction) {
   if (!configManager.isAuthorized(interaction.user.id)) {
@@ -25,47 +25,297 @@ async function execute(interaction) {
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId("select_channel_embed")
     .setPlaceholder("Selecciona el canal donde enviar el embed...")
-    .addOptions(channels.slice(0, 25)); // Discord permite máx 25 opciones
+    .addOptions(channels.slice(0, 25));
 
-  const row = new ActionRowBuilder().addComponents(selectMenu);
+
+  // Botones en español y como la imagen
+  const btnEditarContenido = new ButtonBuilder()
+    .setCustomId("edit_content_embed")
+    .setLabel("Editar Contenido")
+    .setStyle(ButtonStyle.Primary);
+
+  const btnEditarColor = new ButtonBuilder()
+    .setCustomId("edit_color_embed")
+    .setLabel("Editar Color")
+    .setStyle(ButtonStyle.Secondary);
+
+  const btnEditarImagenes = new ButtonBuilder()
+    .setCustomId("edit_images_embed")
+    .setLabel("Editar Imágenes")
+    .setStyle(ButtonStyle.Secondary);
+
+  const btnEditarAutor = new ButtonBuilder()
+    .setCustomId("edit_author_embed")
+    .setLabel("Editar Autor")
+    .setStyle(ButtonStyle.Secondary);
+
+  const btnEditarFooter = new ButtonBuilder()
+    .setCustomId("edit_footer_embed")
+    .setLabel("Editar Pie de página")
+    .setStyle(ButtonStyle.Secondary);
+
+  const btnEnviar = new ButtonBuilder()
+    .setCustomId("send_embed")
+    .setLabel("Enviar")
+    .setStyle(ButtonStyle.Success);
+
+  const btnCancelar = new ButtonBuilder()
+    .setCustomId("cancel_embed")
+    .setLabel("Cancelar")
+    .setStyle(ButtonStyle.Danger);
+
+  const row1 = new ActionRowBuilder().addComponents(selectMenu);
+  const row2 = new ActionRowBuilder().addComponents(btnEditarContenido, btnEditarColor, btnEditarImagenes);
+  const row3 = new ActionRowBuilder().addComponents(btnEditarAutor, btnEditarFooter);
+  const row4 = new ActionRowBuilder().addComponents(btnEnviar, btnCancelar);
+
+  // Estado temporal del embed
+  let embedData = {
+    title: "Embed personalizado",
+    description: "Aqui podras crear tu embed a gusto con un simple comando a tu disposicion.",
+    url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTolYyrw3hYP4OEB9AqcxpLyl0oSplbLkizTg&s",
+    color: 0x23272A
+  };
+  let selectedChannelId = channels[0].value;
 
   await interaction.reply({
-    content: "Selecciona el canal donde enviar el embed de requisitos para Media:",
-    components: [row],
+    content: "Selecciona el canal y edita el contenido del embed:",
+    components: [row1, row2, row3, row4],
     ephemeral: true
   });
 
-  // Esperar selección
-  const select = await interaction.channel.awaitMessageComponent({
-    filter: i => i.user.id === interaction.user.id && i.customId === "select_channel_embed",
-    componentType: ComponentType.StringSelect,
-    time: 60_000
-  }).catch(() => null);
+  const msg = await interaction.fetchReply();
 
-  if (!select) return;
+  const collector = msg.createMessageComponentCollector({
+    filter: i => i.user.id === interaction.user.id,
+    time: 5 * 60_000
+  });
 
-  const channelId = select.values[0];
-  const channel = interaction.guild.channels.cache.get(channelId);
-  if (!channel) {
-    return select.reply({ content: "❌ Canal no encontrado.", ephemeral: true });
-  }
+  collector.on("collect", async i => {
+    if (i.customId === "select_channel_embed") {
+      selectedChannelId = i.values[0];
+      await i.deferUpdate();
+    }
+    if (i.customId === "edit_content_embed") {
+      // Modal para editar contenido
+      const modal = new ModalBuilder()
+        .setCustomId("modal_edit_embed_content")
+        .setTitle("Creador de Embed: Contenido");
 
-  // Embed de requisitos para Media
-  const embed = new EmbedBuilder()
-    .setTitle("Requerimientos para Ser Media")
-    .setDescription(
-      "YouTube: tener como mínimo 200 Subs y una media de visitas de 30.\n\n" +
-      "Twitch: tener como mínimo 250 seguidores y una media de espectadores de 10.\n\n" +
-      "TikTok: tener mínimo 500 seguidores y una media de 1000 visitas por video.\n\n" +
-      "si cumplen con los requisitos crear Ticket en : <#ID_TICKETS_CHANNEL> y pasar captura, pruebas de su canal.\n\nGracias"
-    )
-    .setColor(0x23272A);
+      const titleInput = new TextInputBuilder()
+        .setCustomId("embed_title")
+        .setLabel("Título")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.title || "");
 
-  await channel.send({ embeds: [embed] });
-  await select.update({ content: `✅ Embed enviado a <#${channel.id}>`, components: [] });
+      const descInput = new TextInputBuilder()
+        .setCustomId("embed_description")
+        .setLabel("Descripción")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setMaxLength(4000)
+        .setValue(embedData.description || "");
 
-  // Log de uso
-  await sendCommandLog(interaction.client, "embed", interaction.user, `Canal: #${channel.name}`);
+      const urlInput = new TextInputBuilder()
+        .setCustomId("embed_url")
+        .setLabel("URL")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.url || "");
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(titleInput),
+        new ActionRowBuilder().addComponents(descInput),
+        new ActionRowBuilder().addComponents(urlInput)
+      );
+      await i.showModal(modal);
+    }
+    if (i.customId === "edit_color_embed") {
+      // Modal para editar color
+      const modal = new ModalBuilder()
+        .setCustomId("modal_edit_embed_color")
+        .setTitle("Creador de Embed: Color");
+
+      const colorInput = new TextInputBuilder()
+        .setCustomId("embed_color")
+        .setLabel("Color Hex, Decimal o nombre (\"verde claro\")")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.color ? embedData.color.toString() : "");
+
+      modal.addComponents(new ActionRowBuilder().addComponents(colorInput));
+      await i.showModal(modal);
+    }
+    if (i.customId === "edit_images_embed") {
+      // Modal para editar imágenes
+      const modal = new ModalBuilder()
+        .setCustomId("modal_edit_embed_images")
+        .setTitle("Creador de Embed: Imágenes");
+
+      const imageInput = new TextInputBuilder()
+        .setCustomId("embed_image")
+        .setLabel("URL de la imagen")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.image || "");
+
+      const thumbInput = new TextInputBuilder()
+        .setCustomId("embed_thumbnail")
+        .setLabel("URL de la miniatura")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.thumbnail || "");
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(imageInput),
+        new ActionRowBuilder().addComponents(thumbInput)
+      );
+      await i.showModal(modal);
+    }
+    if (i.customId === "edit_author_embed") {
+      // Modal para editar autor
+      const modal = new ModalBuilder()
+        .setCustomId("modal_edit_embed_author")
+        .setTitle("Creador de Embed: Autor");
+
+      const nameInput = new TextInputBuilder()
+        .setCustomId("embed_author_name")
+        .setLabel("Nombre")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.author_name || "");
+
+      const urlInput = new TextInputBuilder()
+        .setCustomId("embed_author_url")
+        .setLabel("URL")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.author_url || "");
+
+      const iconInput = new TextInputBuilder()
+        .setCustomId("embed_author_icon")
+        .setLabel("URL del icono")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.author_icon || "");
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(nameInput),
+        new ActionRowBuilder().addComponents(urlInput),
+        new ActionRowBuilder().addComponents(iconInput)
+      );
+      await i.showModal(modal);
+    }
+    if (i.customId === "edit_footer_embed") {
+      // Modal para editar pie de página
+      const modal = new ModalBuilder()
+        .setCustomId("modal_edit_embed_footer")
+        .setTitle("Creador de Embed: Pie de página");
+
+      const textInput = new TextInputBuilder()
+        .setCustomId("embed_footer_text")
+        .setLabel("Texto")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.footer_text || "");
+
+      const iconInput = new TextInputBuilder()
+        .setCustomId("embed_footer_icon")
+        .setLabel("URL del icono")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setValue(embedData.footer_icon || "");
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(textInput),
+        new ActionRowBuilder().addComponents(iconInput)
+      );
+      await i.showModal(modal);
+    }
+    if (i.customId === "send_embed") {
+      const channel = interaction.guild.channels.cache.get(selectedChannelId);
+      if (!channel) {
+        await i.reply({ content: "❌ Canal no encontrado.", ephemeral: true });
+        return;
+      }
+      const embed = new EmbedBuilder()
+        .setColor(embedData.color || 0x23272A);
+      if (embedData.title) embed.setTitle(embedData.title);
+      if (embedData.description) embed.setDescription(embedData.description);
+      if (embedData.url) embed.setURL(embedData.url);
+      if (embedData.image) embed.setImage(embedData.image);
+      if (embedData.thumbnail) embed.setThumbnail(embedData.thumbnail);
+      if (embedData.author_name) embed.setAuthor({
+        name: embedData.author_name,
+        url: embedData.author_url || undefined,
+        iconURL: embedData.author_icon || undefined
+      });
+      if (embedData.footer_text) embed.setFooter({
+        text: embedData.footer_text,
+        iconURL: embedData.footer_icon || undefined
+      });
+      await channel.send({ embeds: [embed] });
+      await i.update({ content: `✅ Embed enviado a <#${channel.id}>`, components: [] });
+      collector.stop();
+      await sendCommandLog(interaction.client, "embed", interaction.user, `Canal: #${channel.name}`);
+    }
+    if (i.customId === "cancel_embed") {
+      await i.update({ content: "❌ Operación cancelada.", components: [] });
+      collector.stop();
+    }
+  });
+
+  // Modal submit handler
+  interaction.client.on("interactionCreate", async modalInt => {
+    if (!modalInt.isModalSubmit()) return;
+    if (modalInt.user.id !== interaction.user.id) return;
+    // Contenido
+    if (modalInt.customId === "modal_edit_embed_content") {
+      embedData.title = modalInt.fields.getTextInputValue("embed_title");
+      embedData.description = modalInt.fields.getTextInputValue("embed_description");
+      embedData.url = modalInt.fields.getTextInputValue("embed_url");
+      await modalInt.reply({ content: "✅ Contenido del embed actualizado. Puedes enviarlo o seguir editando.", ephemeral: true });
+    }
+    // Color
+    if (modalInt.customId === "modal_edit_embed_color") {
+      let colorValue = modalInt.fields.getTextInputValue("embed_color").trim();
+      if (colorValue.startsWith("#")) {
+        embedData.color = parseInt(colorValue.replace("#", ""), 16);
+      } else if (/^\d+$/.test(colorValue)) {
+        embedData.color = parseInt(colorValue, 10);
+      } else {
+        // Intentar nombre de color
+        try {
+          const { default: colornames } = await import("colornames");
+          const colorHex = colornames(colorValue);
+          embedData.color = colorHex ? parseInt(colorHex.replace("#", ""), 16) : 0x23272A;
+        } catch {
+          embedData.color = 0x23272A;
+        }
+      }
+      await modalInt.reply({ content: "✅ Color del embed actualizado.", ephemeral: true });
+    }
+    // Imágenes
+    if (modalInt.customId === "modal_edit_embed_images") {
+      embedData.image = modalInt.fields.getTextInputValue("embed_image");
+      embedData.thumbnail = modalInt.fields.getTextInputValue("embed_thumbnail");
+      await modalInt.reply({ content: "✅ Imágenes del embed actualizadas.", ephemeral: true });
+    }
+    // Autor
+    if (modalInt.customId === "modal_edit_embed_author") {
+      embedData.author_name = modalInt.fields.getTextInputValue("embed_author_name");
+      embedData.author_url = modalInt.fields.getTextInputValue("embed_author_url");
+      embedData.author_icon = modalInt.fields.getTextInputValue("embed_author_icon");
+      await modalInt.reply({ content: "✅ Autor del embed actualizado.", ephemeral: true });
+    }
+    // Pie de página
+    if (modalInt.customId === "modal_edit_embed_footer") {
+      embedData.footer_text = modalInt.fields.getTextInputValue("embed_footer_text");
+      embedData.footer_icon = modalInt.fields.getTextInputValue("embed_footer_icon");
+      await modalInt.reply({ content: "✅ Pie de página del embed actualizado.", ephemeral: true });
+    }
+  });
 }
 
 export default {
