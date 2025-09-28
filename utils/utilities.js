@@ -1,7 +1,9 @@
 import { EmbedBuilder, Colors } from "discord.js";
+// Para Node.js 18+ fetch es global, pero para compatibilidad:
+import { fetch } from 'node-fetch';
 import config from "../config.json" with { type: "json" };
 import { configManager } from "./configManager.js";
-import axios from "axios";
+
 
 /**
  * Calculates similarity between two strings using a simple algorithm
@@ -177,12 +179,12 @@ export async function sendCommandLog(client, commandName, user, additionalInfo =
 /**
  * Fetches recent commits from the GitHub repo (for !updgit)
  */
-export async function getRecentCommits() {
+export async function fetchRecentCommits() {
   try {
-    const response = await axios.get(
-      "https://api.github.com/repos/TheGaspyGames/Discorbitsonic/commits"
-    );
-    return response.data.slice(0, 2); // Solo los 2 commits más recientes
+    const res = await fetch("https://api.github.com/repos/TheGaspyGames/Discorbitsonic/commits");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.slice(0, 2); // Solo los 2 commits más recientes
   } catch (error) {
     console.error("Error al obtener los commits:", error);
     return [];

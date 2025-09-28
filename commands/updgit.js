@@ -85,6 +85,25 @@ export async function updGitCommand(message, args, updGitEmbeds) {
             return i.reply({ content: "❌ No estás autorizado para aplicar la actualización.", ephemeral: true });
           }
 
+          // Verificar si ya está en la última versión (SHA)
+          const currentSha = autoUpdateChannels.get(channelId)?.lastCommitSha;
+          let localSha = null;
+          try {
+            // Obtener SHA local
+            await new Promise((resolve, reject) => {
+              exec(`cd ${GIT_PATH} && git rev-parse HEAD`, (err, stdout, stderr) => {
+                if (err) return reject(err);
+                localSha = stdout.trim();
+                resolve();
+              });
+            });
+          } catch (e) {
+            return i.reply({ content: `❌ No se pudo verificar la versión local: ${e.message}`, ephemeral: true });
+          }
+          if (localSha && currentSha && localSha === currentSha) {
+            return i.reply({ content: `⚠️ Ya estás en la última versión (${localSha.slice(0,7)}), no se puede actualizar.`, ephemeral: true });
+          }
+
           i.reply({ content: "⬇️ Descargando y aplicando actualización...", ephemeral: true });
 
           exec(`cd ${GIT_PATH} && git pull`, (err, stdout, stderr) => {
