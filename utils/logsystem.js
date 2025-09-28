@@ -10,6 +10,37 @@ const premiumEnabled = process.env.PREMIUM_LOGS_ENABLED === "true";
 const webhookClient = webhookUrl && premiumEnabled ? new WebhookClient({ url: webhookUrl }) : null;
 
 export function setupServerLogs(client) {
+  // -------------------------------
+  // Usuario entra o sale de canal de voz
+  // -------------------------------
+  client.on("voiceStateUpdate", (oldState, newState) => {
+    // Entró a un canal de voz
+    if (!oldState.channel && newState.channel) {
+      sendLog(
+        "🔊 Usuario se unió a un canal de voz",
+        `${newState.member.user.tag} se unió a <#${newState.channel.id}>`,
+        Colors.Green,
+        [
+          { name: "Usuario", value: `${newState.member.user.tag} (${newState.member.id})`, inline: true },
+          { name: "Canal", value: `<#${newState.channel.id}>`, inline: true }
+        ],
+        { thumbnail: newState.member.user.displayAvatarURL?.() }
+      );
+    }
+    // Salió de un canal de voz
+    else if (oldState.channel && !newState.channel) {
+      sendLog(
+        "🔈 Usuario salió de un canal de voz",
+        `${oldState.member.user.tag} salió de <#${oldState.channel.id}>`,
+        Colors.Orange,
+        [
+          { name: "Usuario", value: `${oldState.member.user.tag} (${oldState.member.id})`, inline: true },
+          { name: "Canal", value: `<#${oldState.channel.id}>`, inline: true }
+        ],
+        { thumbnail: oldState.member.user.displayAvatarURL?.() }
+      );
+    }
+  });
   if (!webhookClient) {
     console.log("🔕 Logs premium desactivados o webhook no configurado");
     return;
