@@ -123,7 +123,13 @@ export async function updGitCommand(message, args, updGitEmbeds) {
 
           i.reply({ content: "⬇️ Descargando y aplicando actualización...", ephemeral: true });
 
-          exec(`cd "${path}" && git pull`, (err, stdout, stderr) => {
+          // Verificar de nuevo la existencia antes de ejecutar git reset/pull
+          if (!fs.existsSync(path)) {
+            sentMessage.edit({ content: `❌ No se puede actualizar porque la carpeta no existe: ${path}`, components: [] });
+            return;
+          }
+
+          exec(`cd "${path}" && git reset --hard && git pull`, (err, stdout, stderr) => {
             if (err) {
               console.error("Error aplicando update:", err, stderr);
               sentMessage.edit({ content: `❌ Error aplicando la actualización!\n${stderr || err.message}\nRuta usada: ${path}`, components: [] });
