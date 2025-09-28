@@ -22,12 +22,12 @@ export function setupServerLogs(client) {
       .setColor(color)
       .setTimestamp()
       .setFooter({
-        text: "Premium Logs",
-        iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif" // Cambia por tu icono premium
+        text: "Discorbitsonic Premium Logs",
+        iconURL: "https://cdn.discordapp.com/icons/1141108860018325635/7e2e2c2e2b2e2b2e2b2e2b2e2b2e2b2e.webp" // Cambia por tu icono premium
       })
       .setAuthor({
-        name: "LOGS PREMIUM DE 500€/mes - Soporte 24/7 - Sin límites - Actualizaciones constantes - Contacto: TheGaspy#1337",
-        iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif"
+        name: "Sistema de Seguridad Avanzado",
+        iconURL: "https://cdn.discordapp.com/emojis/1161709152784171068.webp?size=96&quality=lossless"
       });
     if (fields.length) embed.addFields(fields);
     if (options.thumbnail) embed.setThumbnail(options.thumbnail);

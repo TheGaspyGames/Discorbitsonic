@@ -88,34 +88,17 @@ export async function updGitCommand(message, args, updGitEmbeds) {
           // Verificar si ya está en la última versión (SHA)
           const currentSha = autoUpdateChannels.get(channelId)?.lastCommitSha;
           let localSha = null;
-          // Expansión robusta de ~ para rutas home (Termux, Unix, Windows)
-          let path = GIT_PATH;
-          if (path.startsWith("~")) {
-            let home = process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH || "";
-            // Si es Termux y HOME no está definida, usar ruta por defecto
-            if (!home && process.platform === "android") {
-              home = "/data/data/com.termux/files/home";
-            }
-            path = home + path.slice(1);
-          }
-          // Normalizar separadores para Windows/Unix
-          path = require("path").resolve(path);
-          console.log("[updgit] Ruta final para git:", path);
-          const fs = await import('fs');
-          if (!fs.existsSync(path)) {
-            return i.reply({ content: `❌ La carpeta del repositorio no existe: ${path}\nVerifica la ruta antes de actualizar.`, ephemeral: true });
-          }
           try {
             // Obtener SHA local
             await new Promise((resolve, reject) => {
-              exec(`cd "${path}" && git rev-parse HEAD`, (err, stdout, stderr) => {
+              exec(`cd ${GIT_PATH} && git rev-parse HEAD`, (err, stdout, stderr) => {
                 if (err) return reject(err);
                 localSha = stdout.trim();
                 resolve();
               });
             });
           } catch (e) {
-            return i.reply({ content: `❌ No se pudo verificar la versión local: ${e.message}\nRuta usada: ${path}`, ephemeral: true });
+            return i.reply({ content: `❌ No se pudo verificar la versión local: ${e.message}`, ephemeral: true });
           }
           if (localSha && currentSha && localSha === currentSha) {
             return i.reply({ content: `⚠️ Ya estás en la última versión (${localSha.slice(0,7)}), no se puede actualizar.`, ephemeral: true });
@@ -123,16 +106,10 @@ export async function updGitCommand(message, args, updGitEmbeds) {
 
           i.reply({ content: "⬇️ Descargando y aplicando actualización...", ephemeral: true });
 
-          // Verificar de nuevo la existencia antes de ejecutar git reset/pull
-          if (!fs.existsSync(path)) {
-            sentMessage.edit({ content: `❌ No se puede actualizar porque la carpeta no existe: ${path}`, components: [] });
-            return;
-          }
-
-          exec(`cd "${path}" && git reset --hard && git pull`, (err, stdout, stderr) => {
+          exec(`cd ${GIT_PATH} && git pull`, (err, stdout, stderr) => {
             if (err) {
               console.error("Error aplicando update:", err, stderr);
-              sentMessage.edit({ content: `❌ Error aplicando la actualización!\n${stderr || err.message}\nRuta usada: ${path}`, components: [] });
+              sentMessage.edit({ content: `❌ Error aplicando la actualización!\n${stderr || err.message}`, components: [] });
               return;
             }
             console.log(stdout);
