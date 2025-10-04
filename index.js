@@ -7,6 +7,7 @@ import https from "https";
 import dotenv from "dotenv";
 import { setupServerLogs } from "./utils/logsystem.js";
 import { monitorYouTubeLive } from "./youtube/youtubeLive.js";
+import { maintenanceCommand, isCommandAllowed } from "./commands/maintenance.js";
 
 // Cargar .env
 dotenv.config();
@@ -114,18 +115,25 @@ const prefix = "!";
 const updGitEmbeds = new Map();
 
 client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-  if (!message.content.startsWith(prefix)) return;
+  if (!message.content.startsWith(prefix) || message.author.bot) return;
 
   const args = message.content.slice(prefix.length).trim().split(/ +/);
-  const command = args.shift().toLowerCase();
+  const commandName = args.shift().toLowerCase();
 
-  if (command === "updgit") {
+  if (!isCommandAllowed(message.author.id)) {
+    return message.reply("⚠️ El bot está en mantenimiento. Solo los usuarios autorizados pueden usar comandos.");
+  }
+
+  if (commandName === "mantenimiento") {
+    return maintenanceCommand(message, args);
+  }
+
+  if (commandName === "updgit") {
     const { updGitCommand } = await import("./commands/updgit.js");
     await updGitCommand(message, args, updGitEmbeds);
   }
 
-  if (command === "setpremiumlogs") {
+  if (commandName === "setpremiumlogs") {
     const { setPremiumLogsCommand } = await import("./commands/setpremiumlogs.js");
     await setPremiumLogsCommand(message);
   }
