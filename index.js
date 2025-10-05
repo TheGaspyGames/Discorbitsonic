@@ -51,7 +51,7 @@ for (const folder of commandFolders) {
   // Agregar mensajes de depuración para verificar rutas y módulos
   for (const file of commandFiles) {
     try {
-      const commandPath = path.join(folderPath, file);
+      const commandPath = path.resolve(folderPath, file); // Usar path.resolve para rutas absolutas
       console.log(`🔍 Cargando comando desde: ${commandPath}`); // Depuración
       const command = (await import(commandPath)).default;
 
