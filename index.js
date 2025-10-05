@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Cargar config.json
-const configPath = path.join(process.cwd(), "config.json");
+const configPath = path.join("/data/data/com.termux/files/home/discorbitsonic", "config.json");
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
 // Crear cliente con intents y partials necesarios

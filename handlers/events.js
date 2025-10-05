@@ -1,5 +1,5 @@
 import { Events, EmbedBuilder, Colors, ChannelType } from "discord.js";
-import config from "../config.json" with { type: "json" };
+import config from "/data/data/com.termux/files/home/discorbitsonic/config.json" with { type: "json" };
 import { sendErrorReport, sendLogMessage, setLiveActivity, filterIPAddresses } from "../utils/utilities.js";
 import { configManager } from "../utils/configManager.js";
 

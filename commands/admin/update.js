@@ -13,7 +13,7 @@ async function execute(interaction) {
 
   await interaction.deferReply({ ephemeral: true });
 
-  const repoPath = "/storage/emulated/0/Download/discorbitsonic"; // ruta actualizada del repositorio
+  const repoPath = "/data/data/com.termux/files/home/discorbitsonic"; // nueva ruta del repositorio
   const processName = "bitsonic"; // nombre de pm2
 
   // Primero hacemos un fetch y check si hay cambios

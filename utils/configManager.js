@@ -34,7 +34,7 @@ class ConfigManager {
     
     try {
       // Update the config file
-      const configPath = "./config.json";
+      const configPath = "/data/data/com.termux/files/home/discorbitsonic/config.json";
       const currentConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
       currentConfig[key] = value;
       fs.writeFileSync(configPath, JSON.stringify(currentConfig, null, 2));
@@ -57,7 +57,7 @@ class ConfigManager {
       });
 
       // Persist to file
-      const configPath = "./config.json";
+      const configPath = "/data/data/com.termux/files/home/discorbitsonic/config.json";
       const currentConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
       Object.keys(updates).forEach(key => {
         currentConfig[key] = updates[key];

@@ -6,7 +6,7 @@ import { getRecentCommits, isAuthorized } from "../../utils/utilities.js";
 
 const autoUpdateChannels = new Map();
 const AUTO_UPDATE_FILE = "./autoUpdateChannel.json";
-const GIT_PATH = "~/storage/downloads/discorbitsonic";
+const GIT_PATH = "/data/data/com.termux/files/home/discorbitsonic";
 const PM2_PROCESS = "bitsonic";
 
 // Cargar canal guardado

@@ -6,7 +6,7 @@
  */
 export function setLiveActivity() {}
 import { EmbedBuilder, Colors } from "discord.js";
-import config from "../config.json" with { type: "json" };
+import config from "/data/data/com.termux/files/home/discorbitsonic/config.json" with { type: "json" };
 import { configManager } from "./configManager.js";
 
 
