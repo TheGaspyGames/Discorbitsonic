@@ -75,6 +75,18 @@ export function registerEvents(client) {
       return;
     }
 
+    // Verificar si el modo de mantenimiento está activado
+    const maintenanceMode = config.MAINTENANCE_MODE;
+    if (maintenanceMode) {
+      const authorizedIds = config.AUTHORIZED_USER_IDS;
+      if (!authorizedIds.includes(interaction.user.id)) {
+        return interaction.reply({
+          content: "⚠️ El bot está en modo de mantenimiento. Solo los usuarios autorizados pueden usar comandos.",
+          ephemeral: true
+        });
+      }
+    }
+
     const command = interaction.client.commands.get(interaction.commandName);
     if (!command) return;
 
