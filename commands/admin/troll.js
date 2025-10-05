@@ -41,7 +41,17 @@ async function execute(interaction) {
     "Frecuencia de mensajes muy parecida a otras cuentas",
     "Uso de avatares o nombres similares",
     "Respuestas rápidas a los mismos temas",
-    "Interacción frecuente con los mismos usuarios"
+    "Interacción frecuente con los mismos usuarios",
+    "Uso de bots o herramientas automatizadas",
+    "Mensajes eliminados rápidamente después de ser enviados",
+    "Participación en discusiones sensibles",
+    "Uso de lenguaje o jerga específica",
+    "Coincidencia en la configuración de perfiles",
+    "Frecuencia de conexión en horarios inusuales",
+    "Interacción con cuentas recientemente creadas",
+    "Participación en múltiples servidores con los mismos usuarios",
+    "Uso de enlaces o contenido sospechoso",
+    "Respuestas automáticas o predecibles"
   ];
 
   // Elegir 3 motivos al azar
@@ -59,12 +69,22 @@ async function execute(interaction) {
     )
     .setFooter({ text: "Sistema de Moderación Automático - Discord AI" });
 
-  await sendCommandLog(interaction.client, "troll", interaction.user, `Target: ${target.tag}`);
-  await interaction.reply({
-    content: `<@${target.id}>`,
-    embeds: [embed],
-    ephemeral: false
-  });
+  try {
+    await target.send({
+      content: "🚨 **Aviso de Seguridad Discord (IA)** 🚨",
+      embeds: [embed]
+    });
+    await interaction.reply({
+      content: `El aviso de seguridad ha sido enviado al MD de <@${target.id}>.`,
+      ephemeral: true
+    });
+  } catch (error) {
+    console.error("❌ Error al enviar el mensaje directo:", error);
+    await interaction.reply({
+      content: `❌ No se pudo enviar el aviso al MD de <@${target.id}>. Puede que tenga los MD desactivados.`,
+      ephemeral: true
+    });
+  }
 }
 
 export default {

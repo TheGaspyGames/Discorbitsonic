@@ -252,7 +252,9 @@ export function setupServerLogs(client) {
           `Un usuario cambió su avatar.`,
           Colors.Orange,
           [
-            { name: "Usuario", value: newMember.user.tag, inline: true }
+            { name: "Usuario", value: newMember.user.tag, inline: true },
+            { name: "Avatar anterior", value: oldMember.user.displayAvatarURL(), inline: true },
+            { name: "Avatar nuevo", value: newMember.user.displayAvatarURL(), inline: true }
           ],
           { thumbnail: newMember.user.displayAvatarURL?.() }
         );

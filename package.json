@@ -1,6 +1,6 @@
 {
   "name": "bitsonic",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "Un bot de discord que ayuda a bitsonic con su servidor.",
   "main": "index.js",
   "type": "module",

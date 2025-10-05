@@ -29,7 +29,7 @@ export async function maintenanceCommand(message, args) {
     maintenanceMode = !maintenanceMode;
 
     if (maintenanceMode) {
-      message.client.user.setActivity("Mantenimiento", {
+      message.client.user.setActivity("Bot en Mantenimiento", {
         type: ActivityType.Playing,
         name: "El bot se encuentra en mantenimiento"
       });
