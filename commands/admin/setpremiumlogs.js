@@ -1,27 +1,37 @@
 // commands/setpremiumlogs.js
 import fs from "fs";
 import path from "path";
-import { isAuthorized } from "../utils/utilities.js";
+import { isAuthorized } from "../../utils/utilities.js";
+import { SlashCommandBuilder } from "discord.js";
+import { configManager } from "../../utils/configManager.js";
 
-export async function setPremiumLogsCommand(message) {
+const data = new SlashCommandBuilder()
+  .setName("setpremiumlogs")
+  .setDescription("Activa o actualiza los logs premium en el servidor.");
+
+async function execute(interaction) {
   // Comprobar que se ejecuta en servidor
-  if (!message.guild) {
-    return message.reply("❌ Este comando solo puede usarse dentro de un servidor.");
+  if (!interaction.guild) {
+    return interaction.reply("❌ Este comando solo puede usarse dentro de un servidor.");
   }
 
   // Pasar el id del autor a isAuthorized
-  if (!isAuthorized({ user: { id: message.author.id } })) {
-    return message.reply("❌ No estás autorizado para activar los logs premium.");
+  if (!isAuthorized({ user: { id: interaction.user.id } })) {
+    return interaction.reply({ content: "❌ No estás autorizado para activar los logs premium.", ephemeral: true });
   }
 
-  const configPath = path.join(process.cwd(), "config.json");
-  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const configPath = "./config.json";
+  const config = configManager.get("PREMIUM_LOGS_ENABLED");
 
-  // Actualiza la variable PREMIUM_ID con el canal actual
-  config.PREMIUM_ID = message.channel.id;
-  config.PREMIUM_LOGS_ENABLED = true;
+  await configManager.setMultiple({
+    PREMIUM_ID: interaction.channel.id,
+    PREMIUM_LOGS_ENABLED: true
+  });
 
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
-
-  message.reply(`✅ Logs premium activados correctamente en el canal <#${message.channel.id}>.`);
+  await interaction.reply(`✅ Logs premium activados correctamente en el canal <#${interaction.channel.id}>.`);
 }
+
+export default {
+  data,
+  execute
+};

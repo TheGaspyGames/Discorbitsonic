@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
-import { sendCommandLog } from "../utils/utilities.js";
+import { sendCommandLog } from "../../utils/utilities.js";
 
 const OWNER_ID = "684395420004253729";
 

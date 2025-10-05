@@ -1,7 +1,6 @@
-
 import { SlashCommandBuilder, EmbedBuilder, ChannelType, ActionRowBuilder, StringSelectMenuBuilder, ComponentType, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, InteractionType } from "discord.js";
-import { sendCommandLog } from "../utils/utilities.js";
-import { configManager } from "../utils/configManager.js";
+import { sendCommandLog } from "../../utils/utilities.js";
+import { configManager } from "../../utils/configManager.js";
 
 const data = new SlashCommandBuilder()
   .setName("embed")

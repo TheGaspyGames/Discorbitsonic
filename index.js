@@ -7,7 +7,6 @@ import https from "https";
 import dotenv from "dotenv";
 import { setupServerLogs } from "./utils/logsystem.js";
 import { monitorYouTubeLive } from "./youtube/youtubeLive.js";
-import { maintenanceCommand, isCommandAllowed } from "./commands/maintenance.js";
 
 // Cargar .env
 dotenv.config();
@@ -16,11 +15,11 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Cargar config.json (solo para otras cosas, no para logs premium)
+// Cargar config.json
 const configPath = path.join(process.cwd(), "config.json");
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
-// Crear cliente con intents y partials necesarios para logs premium
+// Crear cliente con intents y partials necesarios
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -33,7 +32,7 @@ const client = new Client({
     Partials.Message,
     Partials.Channel,
     Partials.Reaction,
-    Partials.GuildMember // ← añadido para kicks/bans/unbans
+    Partials.GuildMember
   ]
 });
 
@@ -42,14 +41,50 @@ client.commands = new Collection();
 // ================================
 // ⚡ Cargar comandos slash
 // ================================
-const commandsPath = path.join(__dirname, "commands");
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
+const commands = [];
+const commandFolders = ["commands/public", "commands/admin"];
 
-for (const file of commandFiles) {
-  const commandModule = await import(`./commands/${file}`);
-  const command = commandModule.default ?? commandModule;
-  if (command.data?.name) client.commands.set(command.data.name, command);
+for (const folder of commandFolders) {
+  const folderPath = path.join(__dirname, folder);
+  const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith(".js"));
+
+  // Agregar mensajes de depuración para verificar rutas y módulos
+  for (const file of commandFiles) {
+    try {
+      const commandPath = path.join(folderPath, file);
+      console.log(`🔍 Cargando comando desde: ${commandPath}`); // Depuración
+      const command = (await import(commandPath)).default;
+
+      if (command?.data?.name && command?.execute) {
+        client.commands.set(command.data.name, command);
+        commands.push(command.data.toJSON());
+        console.log(`✅ Comando cargado: ${command.data.name}`); // Depuración
+      } else {
+        console.warn(`⚠️ El comando en ${file} no tiene las propiedades necesarias (data y execute).`);
+      }
+    } catch (error) {
+      console.error(`❌ Error al cargar el comando ${file}:`, error);
+    }
+  }
 }
+
+// ================================
+// ⚡ Registrar comandos en Discord
+// ================================
+client.once("ready", async () => {
+  try {
+    const guild = client.guilds.cache.get(config.TARGET_GUILD_ID);
+    if (!guild) {
+      console.error("❌ Servidor objetivo no encontrado. Verifica TARGET_GUILD_ID en config.json.");
+      return;
+    }
+
+    await guild.commands.set(commands);
+    console.log(`✅ ${commands.length} comandos sincronizados correctamente en el servidor objetivo.`);
+  } catch (error) {
+    console.error("❌ Error al sincronizar comandos en el servidor objetivo:", error);
+  }
+});
 
 // ================================
 // ⚡ Cargar eventos
@@ -107,37 +142,6 @@ setInterval(async () => {
     offlineStart = null;
   }
 }, 10 * 1000);
-
-// ================================
-// ⚡ Comandos de prefijo
-// ================================
-const prefix = "!";
-const updGitEmbeds = new Map();
-
-client.on("messageCreate", async (message) => {
-  if (!message.content.startsWith(prefix) || message.author.bot) return;
-
-  const args = message.content.slice(prefix.length).trim().split(/ +/);
-  const commandName = args.shift().toLowerCase();
-
-  if (!isCommandAllowed(message.author.id)) {
-    return message.reply("⚠️ El bot está en mantenimiento. Solo los usuarios autorizados pueden usar comandos.");
-  }
-
-  if (commandName === "mantenimiento") {
-    return maintenanceCommand(message, args);
-  }
-
-  if (commandName === "updgit") {
-    const { updGitCommand } = await import("./commands/updgit.js");
-    await updGitCommand(message, args, updGitEmbeds);
-  }
-
-  if (commandName === "setpremiumlogs") {
-    const { setPremiumLogsCommand } = await import("./commands/setpremiumlogs.js");
-    await setPremiumLogsCommand(message);
-  }
-});
 
 // ================================
 // ⚡ Logs premium (webhook desde .env)

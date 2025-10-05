@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
-import config from "../config.json" with { type: "json" };
-import { sendCommandLog } from "../utils/utilities.js";
-import { configManager } from "../utils/configManager.js";
+import config from "../../config.json" with { type: "json" };
+import { sendCommandLog } from "../../utils/utilities.js";
+import { configManager } from "../../utils/configManager.js";
 
 const data = new SlashCommandBuilder()
   .setName("mdsg")

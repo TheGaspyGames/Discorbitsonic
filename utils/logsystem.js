@@ -219,7 +219,7 @@ export function setupServerLogs(client) {
         );
       }
 
-      if (oldMember.nickname !== newMember.nickname) {
+      if (oldMember.nickname !== newMember.nickname && oldMember.user.displayAvatarURL() === newMember.user.displayAvatarURL()) {
         sendLog(
           "✏️ Nick cambiado",
           `Un usuario cambió su apodo.`,
@@ -228,19 +228,6 @@ export function setupServerLogs(client) {
             { name: "Usuario", value: newMember.user.tag, inline: true },
             { name: "Antes", value: oldMember.nickname || "(sin nick)", inline: true },
             { name: "Después", value: newMember.nickname || "(sin nick)", inline: true }
-          ],
-          { thumbnail: newMember.user.displayAvatarURL?.() }
-        );
-      }
-
-      if (oldMember.user.username !== newMember.user.username) {
-        sendLog(
-          "🖋️ Nombre de Discord cambiado",
-          `Un usuario cambió su nombre de Discord.`,
-          Colors.Orange,
-          [
-            { name: "Antes", value: oldMember.user.username, inline: true },
-            { name: "Después", value: newMember.user.username, inline: true }
           ],
           { thumbnail: newMember.user.displayAvatarURL?.() }
         );

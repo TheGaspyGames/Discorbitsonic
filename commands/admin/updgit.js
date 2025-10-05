@@ -1,8 +1,8 @@
 import { exec } from "child_process";
 import fs from "fs";
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import config from "../config.json" with { type: "json" };
-import { getRecentCommits, isAuthorized } from "../utils/utilities.js";
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } from "discord.js";
+import config from "../../config.json" with { type: "json" };
+import { getRecentCommits, isAuthorized } from "../../utils/utilities.js";
 
 const autoUpdateChannels = new Map();
 const AUTO_UPDATE_FILE = "./autoUpdateChannel.json";
@@ -19,6 +19,10 @@ try {
 } catch (e) {
   console.error("Error leyendo canal auto-update:", e);
 }
+
+const data = new SlashCommandBuilder()
+  .setName("updgit")
+  .setDescription("Fuerza una actualización del bot desde GitHub y muestra los últimos cambios.");
 
 export async function updGitCommand(message, args, updGitEmbeds) {
   // Verificar LOG_CHANNEL_ID
@@ -140,3 +144,29 @@ export async function updGitCommand(message, args, updGitEmbeds) {
   const interval = setInterval(autoUpdate, 30 * 1000);
   autoUpdateChannels.set(channelId, { ...autoUpdateChannels.get(channelId), interval });
 }
+
+async function execute(interaction) {
+  if (!isAuthorized(interaction.user.id)) {
+    return interaction.reply({ content: "❌ No estás autorizado para usar este comando.", ephemeral: true });
+  }
+
+  await interaction.reply({ content: "⬇️ Obteniendo los últimos commits...", ephemeral: true });
+
+  try {
+    const commits = await getRecentCommits();
+    if (!commits.length) {
+      return interaction.editReply("✅ No hay nuevos commits disponibles.");
+    }
+
+    const commitMessages = commits.map(c => `• ${c.commit.message} (${c.commit.author.date})`).join("\n");
+    await interaction.editReply(`✅ Últimos commits:\n${commitMessages}`);
+  } catch (error) {
+    console.error("Error al obtener commits:", error);
+    await interaction.editReply("❌ Ocurrió un error al obtener los commits.");
+  }
+}
+
+export default {
+  data,
+  execute
+};
