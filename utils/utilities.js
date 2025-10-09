@@ -8,6 +8,7 @@ export function setLiveActivity() {}
 import { EmbedBuilder, Colors } from "discord.js";
 import config from "/data/data/com.termux/files/home/discorbitsonic/config.json" with { type: "json" };
 import { configManager } from "./configManager.js";
+import pm2 from "pm2";
 
 
 /**
@@ -195,3 +196,28 @@ export async function getRecentCommits() {
     return [];
   }
 }
+
+/**
+ * Obtiene métricas del servidor y de PM2
+ */
+async function getServerMetrics(guild) {
+  const totalUsers = guild.memberCount;
+  const totalRoles = guild.roles.cache.size;
+  const totalChannels = guild.channels.cache.size;
+
+  const pm2Metrics = await new Promise((resolve, reject) => {
+    pm2.list((err, list) => {
+      if (err) return reject(err);
+      resolve(list.map(proc => ({ name: proc.name, status: proc.pm2_env.status })));
+    });
+  });
+
+  return {
+    totalUsers,
+    totalRoles,
+    totalChannels,
+    pm2Metrics,
+  };
+}
+
+export { getServerMetrics };

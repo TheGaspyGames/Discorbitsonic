@@ -1,5 +1,5 @@
 // utils/logsystem.js
-import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
+import { EmbedBuilder, Colors, WebhookClient, VoiceState, GuildMember, Invite } from "discord.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -345,4 +345,37 @@ client.on("roleUpdate", async (oldRole, newRole) => {
       console.error("❌ Error guildUpdate:", err);
     }
   });
+
+  // -------------------------------
+  // Eventos adicionales
+  // -------------------------------
+  client.on("voiceStateUpdate", (oldState, newState) => {
+    logVoiceStateUpdate(oldState, newState);
+  });
+
+  client.on("inviteCreate", (invite) => {
+    logInviteCreate(invite);
+  });
+
+  client.on("guildMemberUpdate", (oldMember, newMember) => {
+    if (oldMember.user.displayAvatarURL() !== newMember.user.displayAvatarURL()) {
+      logAvatarUpdate(newMember);
+    }
+  });
+}
+
+function logVoiceStateUpdate(oldState, newState) {
+  if (!oldState.channel && newState.channel) {
+    sendLogMessage(`🔊 **${newState.member.user.tag}** ha entrado al canal de voz **${newState.channel.name}**.`);
+  } else if (oldState.channel && !newState.channel) {
+    sendLogMessage(`🔇 **${oldState.member.user.tag}** ha salido del canal de voz **${oldState.channel.name}**.`);
+  }
+}
+
+function logInviteCreate(invite) {
+  sendLogMessage(`📨 **${invite.inviter.tag}** ha creado una invitación para el canal **${invite.channel.name}** con código **${invite.code}**.`);
+}
+
+function logAvatarUpdate(member) {
+  sendLogMessage(`🖼️ **${member.user.tag}** ha actualizado su avatar.`);
 }
