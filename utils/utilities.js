@@ -205,6 +205,37 @@ async function getServerMetrics(guild) {
   const totalRoles = guild.roles.cache.size;
   const totalChannels = guild.channels.cache.size;
 
+  const pm2Metrics = await new Promise((resolve, reject) => {
+    // 1. INICIAR LA CONEXIÓN con el demonio de PM2
+    pm2.connect(function(err) {
+      if (err) {
+        console.error("Error al conectar con PM2:", err);
+        return reject(err);
+      }
+
+      // 2. OBTENER LA LISTA DE PROCESOS
+      pm2.list((err, list) => {
+        // 3. DESCONECTARSE (liberar el recurso)
+        pm2.disconnect();
+
+        if (err) {
+          console.error("Error al listar procesos de PM2:", err);
+          return reject(err);
+        }
+
+        const metrics = list.map(proc => ({ 
+          name: proc.name, 
+          status: proc.pm2_env.status,
+          // Puedes añadir más métricas como memoria o cpu:
+          // cpu: proc.monit.cpu,
+          // memory: proc.monit.memory 
+        }));
+        
+        resolve(metrics);
+      });
+    });
+  });
+
   return {
     totalUsers,
     totalRoles,

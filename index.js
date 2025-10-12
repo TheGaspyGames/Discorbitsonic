@@ -129,7 +129,7 @@ setInterval(async () => {
 
     const startTime = offlineStart.toLocaleString("es-CL", { timeZone: "America/Santiago" });
 
-    const message = `✅ Internet volvió!\n⏱ Tiempo caído: ${hours}h ${minutes}m ${seconds}s\n🕒 Hora de inicio de caída: ${startTime} (GMT-3)`;
+    const message = `✅ El internet volvió!\n⏱ Tiempo caído: ${hours}h ${minutes}m ${seconds}s\n🕒 Hora de inicio de caída: ${startTime} (GMT-3)`;
 
     try {
       const channel = await client.channels.fetch(CHANNEL_ID);
