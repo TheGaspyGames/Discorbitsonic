@@ -13,7 +13,7 @@ export function setupServerLogs(client) {
   // -------------------------------
   // Usuario entra o sale de canal de voz
   // -------------------------------
-  client.on("voiceStateUpdate", (oldState, newState) => {
+  client.on("voiceStateUpdate", async (oldState, newState) => {
     try {
       // Entró a un canal de voz
       if (!oldState.channel && newState.channel) {
@@ -28,8 +28,9 @@ export function setupServerLogs(client) {
           { thumbnail: newState.member.user.displayAvatarURL?.() }
         );
       }
+
       // Salió de un canal de voz
-      else if (oldState.channel && !newState.channel) {
+      if (oldState.channel && !newState.channel) {
         sendLog(
           "🔈 Usuario salió de un canal de voz",
           `${oldState.member.user.tag} salió de <#${oldState.channel.id}>`,
@@ -43,6 +44,22 @@ export function setupServerLogs(client) {
       }
     } catch (err) {
       console.error("❌ Error en voiceStateUpdate:", err);
+    }
+  });
+
+  client.on("guildMemberAdd", async (member) => {
+    try {
+      sendLog(
+        "👋 Usuario se unió al servidor",
+        `${member.user.tag} se ha unido al servidor.`,
+        Colors.Green,
+        [
+          { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
+        ],
+        { thumbnail: member.user.displayAvatarURL?.() }
+      );
+    } catch (err) {
+      console.error("❌ Error en guildMemberAdd:", err);
     }
   });
   if (!webhookClient) {
