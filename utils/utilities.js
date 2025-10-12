@@ -198,25 +198,17 @@ export async function getRecentCommits() {
 }
 
 /**
- * Obtiene métricas del servidor y de PM2
+ * Obtiene métricas del servidor
  */
 async function getServerMetrics(guild) {
   const totalUsers = guild.memberCount;
   const totalRoles = guild.roles.cache.size;
   const totalChannels = guild.channels.cache.size;
 
-  const pm2Metrics = await new Promise((resolve, reject) => {
-    pm2.list((err, list) => {
-      if (err) return reject(err);
-      resolve(list.map(proc => ({ name: proc.name, status: proc.pm2_env.status })));
-    });
-  });
-
   return {
     totalUsers,
     totalRoles,
     totalChannels,
-    pm2Metrics,
   };
 }
 

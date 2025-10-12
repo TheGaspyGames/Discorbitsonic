@@ -1,4 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
+import { sendCommandLog } from "../../utils/utilities.js";
 
 const respuestas = [
   "Sí",
@@ -21,6 +22,8 @@ const data = new SlashCommandBuilder()
   );
 
 async function execute(interaction) {
+  await sendCommandLog(interaction.client, "8ball", interaction.user);
+
   const pregunta = interaction.options.getString("pregunta");
   const respuesta = respuestas[Math.floor(Math.random() * respuestas.length)];
 

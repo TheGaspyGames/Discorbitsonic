@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { sendCommandLog } from "../../utils/utilities.js";
 
 const data = new SlashCommandBuilder()
   .setName("banner")
@@ -8,6 +9,8 @@ const data = new SlashCommandBuilder()
   );
 
 async function execute(interaction) {
+  await sendCommandLog(interaction.client, "banner", interaction.user);
+
   const user = interaction.options.getUser("usuario");
   const userFetch = await interaction.client.users.fetch(user.id, { force: true });
   const bannerUrl = userFetch.bannerURL({ dynamic: true, size: 512 });

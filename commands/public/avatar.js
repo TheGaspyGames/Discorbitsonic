@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { sendCommandLog } from "../../utils/utilities.js";
 
 const data = new SlashCommandBuilder()
   .setName("avatar")
@@ -8,6 +9,8 @@ const data = new SlashCommandBuilder()
   );
 
 async function execute(interaction) {
+  await sendCommandLog(interaction.client, "avatar", interaction.user);
+
   const user = interaction.options.getUser("usuario");
   const avatarUrl = user.displayAvatarURL({ dynamic: true, size: 512 });
 

@@ -204,22 +204,24 @@ export function setupServerLogs(client) {
       if (addedRoles.size || removedRoles.size) {
         const audit = await newMember.guild.fetchAuditLogs({ type: 25, limit: 1 }); // MEMBER_ROLE_UPDATE
         const entry = audit.entries.first();
-        sendLog(
-          "🛠️ Roles modificados",
-          `Se han modificado los roles de un usuario.`,
-          Colors.Green,
-          [
-            { name: "Usuario", value: newMember.user.tag, inline: true },
-            { name: "Roles añadidos", value: addedRoles.size ? addedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
-            { name: "Roles removidos", value: removedRoles.size ? removedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
-            { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
-            { name: "Razón", value: entry?.reason || "No especificada", inline: false }
-          ],
-          { thumbnail: newMember.user.displayAvatarURL?.() }
-        );
+        if (entry && entry.target.id === newMember.id && Date.now() - entry.createdTimestamp < 5000) {
+          sendLog(
+            "🛠️ Roles modificados",
+            `Se han modificado los roles de un usuario.`,
+            Colors.Green,
+            [
+              { name: "Usuario", value: newMember.user.tag, inline: true },
+              { name: "Roles añadidos", value: addedRoles.size ? addedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
+              { name: "Roles removidos", value: removedRoles.size ? removedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
+              { name: "Ejecutor", value: entry.executor?.tag || "Desconocido", inline: true },
+              { name: "Razón", value: entry.reason || "No especificada", inline: false }
+            ],
+            { thumbnail: newMember.user.displayAvatarURL?.() }
+          );
+        }
       }
 
-      if (oldMember.nickname !== newMember.nickname && oldMember.user.displayAvatarURL() === newMember.user.displayAvatarURL()) {
+      if (oldMember.nickname !== newMember.nickname) {
         sendLog(
           "✏️ Nick cambiado",
           `Un usuario cambió su apodo.`,
@@ -240,8 +242,8 @@ export function setupServerLogs(client) {
           Colors.Orange,
           [
             { name: "Usuario", value: newMember.user.tag, inline: true },
-            { name: "Avatar anterior", value: oldMember.user.displayAvatarURL(), inline: true },
-            { name: "Avatar nuevo", value: newMember.user.displayAvatarURL(), inline: true }
+            { name: "Avatar anterior", value: `[Ver anterior](${oldMember.user.displayAvatarURL()})`, inline: true },
+            { name: "Avatar nuevo", value: `[Ver nuevo](${newMember.user.displayAvatarURL()})`, inline: true }
           ],
           { thumbnail: newMember.user.displayAvatarURL?.() }
         );

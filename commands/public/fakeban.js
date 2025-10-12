@@ -1,4 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { sendCommandLog } from "../../utils/utilities.js";
+
 const cooldowns = new Map();
 const cooldownTime = 60 * 60 * 1000; // 1 hora en milisegundos
 
@@ -12,6 +14,8 @@ const data = new SlashCommandBuilder()
   );
 
 async function execute(interaction) {
+  await sendCommandLog(interaction.client, "fakeban", interaction.user);
+
   const target = interaction.options.getUser("usuario");
   const userId = interaction.user.id;
   const isAdmin = interaction.member.permissions.has(["Administrator", "ManageGuild"]);

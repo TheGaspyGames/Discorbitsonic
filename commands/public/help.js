@@ -26,6 +26,8 @@ async function execute(interaction) {
       { name: "🔧 /logsetup", value: "Configura el sistema de logs premium.", inline: false },
       { name: "🔄 /update", value: "Actualiza el bot a la última versión disponible desde el repositorio.", inline: false },
       { name: "⬆️ /updgit", value: "Fuerza una actualización del bot desde GitHub y muestra los últimos cambios.", inline: false },
+      { name: "🖼️ /avatar", value: "Muestra el avatar de un usuario en un embed.", inline: false },
+      { name: "🎨 /banner", value: "Muestra el banner de un usuario en un embed.", inline: false },
       // Prefijo !
       { name: "💻 !updgit", value: "Fuerza una actualización del bot desde GitHub (comando rápido por prefijo).", inline: false },
       { name: "🔧 !setpremiumlogs", value: "Activa o actualiza los logs premium en el servidor usando el prefijo.", inline: false },

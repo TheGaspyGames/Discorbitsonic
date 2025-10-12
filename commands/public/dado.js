@@ -1,4 +1,5 @@
 import { SlashCommandBuilder } from "discord.js";
+import { sendCommandLog } from "../../utils/utilities.js";
 
 const data = new SlashCommandBuilder()
   .setName("dado")
@@ -10,6 +11,8 @@ const data = new SlashCommandBuilder()
   );
 
 async function execute(interaction) {
+  await sendCommandLog(interaction.client, "dado", interaction.user);
+
   const caras = interaction.options.getInteger("caras") || 6;
 
   if (caras < 1) {

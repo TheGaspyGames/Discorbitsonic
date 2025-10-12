@@ -1,4 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from "discord.js";
+import { sendCommandLog } from "../../utils/utilities.js";
 
 const data = new SlashCommandBuilder()
   .setName("nuke")
@@ -6,6 +7,8 @@ const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels);
 
 async function execute(interaction) {
+  await sendCommandLog(interaction.client, "nuke", interaction.user);
+
   const channel = interaction.channel;
   const channelName = channel.name;
   const channelPermissions = channel.permissionOverwrites.cache;

@@ -1,11 +1,14 @@
 import { SlashCommandBuilder } from "discord.js";
 import { exec } from "child_process";
+import { sendCommandLog } from "../../utils/utilities.js";
 
 const data = new SlashCommandBuilder()
   .setName("update")
   .setDescription("Actualiza el bot desde GitHub y reinicia (solo propietario)");
 
 async function execute(interaction) {
+  await sendCommandLog(interaction.client, "update", interaction.user);
+
   const OWNER_ID = "684395420004253729"; // tu ID real
   if (interaction.user.id !== OWNER_ID) {
     return interaction.reply({ content: "❌ Solo el propietario puede usar este comando.", ephemeral: true });
