@@ -97,30 +97,38 @@ export function setupServerLogs(client) {
   });
 
   client.on("voiceStateUpdate", async (oldState, newState) => {
-    if (!oldState.channel && newState.channel) {
-      sendLog(
-        "🔊 Usuario se unió a un canal de voz",
-        `${newState.member.user.tag} se unió a <#${newState.channel.id}>`,
-        Colors.Green,
-        [
-          { name: "Usuario", value: `${newState.member.user.tag} (${newState.member.id})`, inline: true },
-          { name: "Canal", value: `<#${newState.channel.id}>`, inline: true }
-        ],
-        { thumbnail: newState.member.user.displayAvatarURL?.() }
-      );
-    }
+    try {
+      // Entró a un canal de voz
+      if (!oldState.channel && newState.channel) {
+        const embed = new EmbedBuilder()
+          .setTitle("User joined channel")
+          .setColor(Colors.Green)
+          .addFields(
+            { name: "User", value: `<@${newState.member.user.id}> (${newState.member.user.tag})`, inline: true },
+            { name: "Channel", value: `<#${newState.channel.id}>`, inline: true },
+            { name: "Users", value: `${newState.channel.members.size}/${newState.channel.userLimit || "∞"}`, inline: true }
+          )
+          .setThumbnail(newState.member.user.displayAvatarURL?.());
 
-    if (oldState.channel && !newState.channel) {
-      sendLog(
-        "🔈 Usuario salió de un canal de voz",
-        `${oldState.member.user.tag} salió de <#${oldState.channel.id}>`,
-        Colors.Orange,
-        [
-          { name: "Usuario", value: `${oldState.member.user.tag} (${oldState.member.id})`, inline: true },
-          { name: "Canal", value: `<#${oldState.channel.id}>`, inline: true }
-        ],
-        { thumbnail: oldState.member.user.displayAvatarURL?.() }
-      );
+        await webhookClient.send({ embeds: [embed] });
+      }
+
+      // Salió de un canal de voz
+      if (oldState.channel && !newState.channel) {
+        const embed = new EmbedBuilder()
+          .setTitle("User left channel")
+          .setColor(Colors.Orange)
+          .addFields(
+            { name: "User", value: `<@${oldState.member.user.id}> (${oldState.member.user.tag})`, inline: true },
+            { name: "Channel", value: `<#${oldState.channel.id}>`, inline: true },
+            { name: "Users", value: `${oldState.channel.members.size}/${oldState.channel.userLimit || "∞"}`, inline: true }
+          )
+          .setThumbnail(oldState.member.user.displayAvatarURL?.());
+
+        await webhookClient.send({ embeds: [embed] });
+      }
+    } catch (err) {
+      console.error("❌ Error en voiceStateUpdate:", err);
     }
   });
 
