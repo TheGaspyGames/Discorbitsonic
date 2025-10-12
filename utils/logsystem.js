@@ -1,67 +1,13 @@
 // utils/logsystem.js
-import { EmbedBuilder, Colors, WebhookClient, VoiceState, GuildMember, Invite } from "discord.js";
+import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
 import dotenv from "dotenv";
 dotenv.config();
 
-// Variables del .env
 const webhookUrl = process.env.PREMIUM_WEBHOOK_URL;
 const premiumEnabled = process.env.PREMIUM_LOGS_ENABLED === "true";
-
 const webhookClient = webhookUrl && premiumEnabled ? new WebhookClient({ url: webhookUrl }) : null;
 
 export function setupServerLogs(client) {
-  // -------------------------------
-  // Usuario entra o sale de canal de voz
-  // -------------------------------
-  client.on("voiceStateUpdate", async (oldState, newState) => {
-    try {
-      // Entró a un canal de voz
-      if (!oldState.channel && newState.channel) {
-        sendLog(
-          "🔊 Usuario se unió a un canal de voz",
-          `${newState.member.user.tag} se unió a <#${newState.channel.id}>`,
-          Colors.Green,
-          [
-            { name: "Usuario", value: `${newState.member.user.tag} (${newState.member.id})`, inline: true },
-            { name: "Canal", value: `<#${newState.channel.id}>`, inline: true }
-          ],
-          { thumbnail: newState.member.user.displayAvatarURL?.() }
-        );
-      }
-
-      // Salió de un canal de voz
-      if (oldState.channel && !newState.channel) {
-        sendLog(
-          "🔈 Usuario salió de un canal de voz",
-          `${oldState.member.user.tag} salió de <#${oldState.channel.id}>`,
-          Colors.Orange,
-          [
-            { name: "Usuario", value: `${oldState.member.user.tag} (${oldState.member.id})`, inline: true },
-            { name: "Canal", value: `<#${oldState.channel.id}>`, inline: true }
-          ],
-          { thumbnail: oldState.member.user.displayAvatarURL?.() }
-        );
-      }
-    } catch (err) {
-      console.error("❌ Error en voiceStateUpdate:", err);
-    }
-  });
-
-  client.on("guildMemberAdd", async (member) => {
-    try {
-      sendLog(
-        "👋 Usuario se unió al servidor",
-        `${member.user.tag} se ha unido al servidor.`,
-        Colors.Green,
-        [
-          { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
-        ],
-        { thumbnail: member.user.displayAvatarURL?.() }
-      );
-    } catch (err) {
-      console.error("❌ Error en guildMemberAdd:", err);
-    }
-  });
   if (!webhookClient) {
     console.log("🔕 Logs premium desactivados o webhook no configurado");
     return;
@@ -73,63 +19,19 @@ export function setupServerLogs(client) {
       .setDescription(description)
       .setColor(color)
       .setTimestamp()
-      .setFooter({
-        text: "Premium Logs 500€",
-        iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif" // Cambia por tu icono premium
-      })
-      .setAuthor({
-        name: "LOGS PREMIUM 500€",
-        iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif"
-      });
+      .setFooter({ text: "Sistema de Logs", iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif" });
+
     if (fields.length) embed.addFields(fields);
     if (options.thumbnail) embed.setThumbnail(options.thumbnail);
     if (options.image) embed.setImage(options.image);
+
     await webhookClient.send({ embeds: [embed] });
   }
 
-  // -------------------------------
-  // Mensajes eliminados / editados
-  // -------------------------------
-  client.on("messageDelete", async (message) => {
-    if (!message.partial && message.author?.bot) return;
+  client.on("guildMemberAdd", async (member) => {
     sendLog(
-      "🗑️ Mensaje eliminado",
-      `Un mensaje fue eliminado en el servidor.`,
-      Colors.Red,
-      [
-        { name: "Autor", value: message.author?.tag || "Desconocido", inline: true },
-        { name: "Canal", value: `<#${message.channel.id}>`, inline: true },
-        { name: "Contenido", value: message.content || "(sin contenido)", inline: false }
-      ],
-      { thumbnail: message.author?.displayAvatarURL?.() }
-    );
-  });
-
-  client.on("messageUpdate", async (oldMessage, newMessage) => {
-    if (oldMessage.partial || newMessage.partial) return;
-    if (oldMessage.author?.bot) return;
-    if (oldMessage.content === newMessage.content) return;
-    sendLog(
-      "✏️ Mensaje editado",
-      `Un mensaje fue editado en el servidor.`,
-      Colors.Orange,
-      [
-        { name: "Autor", value: oldMessage.author.tag, inline: true },
-        { name: "Canal", value: `<#${oldMessage.channel.id}>`, inline: true },
-        { name: "Antes", value: oldMessage.content, inline: false },
-        { name: "Después", value: newMessage.content, inline: false }
-      ],
-      { thumbnail: oldMessage.author.displayAvatarURL?.() }
-    );
-  });
-
-  // -------------------------------
-  // Usuarios entran o salen / kick
-  // -------------------------------
-  client.on("guildMemberAdd", (member) => {
-    sendLog(
-      "👋 Nuevo miembro",
-      `Un usuario se ha unido al servidor.`,
+      "👋 Usuario se unió al servidor",
+      `${member.user.tag} se ha unido al servidor.`,
       Colors.Green,
       [
         { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
@@ -139,266 +41,130 @@ export function setupServerLogs(client) {
   });
 
   client.on("guildMemberRemove", async (member) => {
-    try {
-      const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 }); // Kick
-      const entry = audit.entries.first();
-      // Si fue kick, solo loguear el kick y no el 'salió'
-      if (entry && entry.target.id === member.id && Date.now() - entry.createdTimestamp < 5000) {
-        sendLog(
-          "👢 Miembro expulsado",
-          `Un usuario fue expulsado del servidor.`,
-          Colors.Yellow,
-          [
-            { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true },
-            { name: "Ejecutor", value: entry.executor?.tag || "Desconocido", inline: true },
-            { name: "Razón", value: entry.reason || "No especificada", inline: false }
-          ],
-          { thumbnail: member.user.displayAvatarURL?.() }
-        );
-      } else {
-        sendLog(
-          "🚪 Miembro salió",
-          `Un usuario salió del servidor.`,
-          Colors.DarkGrey,
-          [
-            { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
-          ],
-          { thumbnail: member.user.displayAvatarURL?.() }
-        );
-      }
-    } catch (err) {
-      console.error("Error audit logs kick:", err);
-    }
+    sendLog(
+      "🚪 Usuario salió del servidor",
+      `${member.user.tag} ha salido del servidor.`,
+      Colors.DarkGrey,
+      [
+        { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
+      ],
+      { thumbnail: member.user.displayAvatarURL?.() }
+    );
   });
 
-  // -------------------------------
-  // Ban / Unban
-  // -------------------------------
-  client.on("guildBanAdd", async (ban) => {
-    try {
-      const audit = await ban.guild.fetchAuditLogs({ type: 22, limit: 1 }); // MEMBER_BAN_ADD
-      const entry = audit.entries.first();
-      sendLog(
-        "⛔ Usuario baneado",
-        `Un usuario fue baneado del servidor.`,
-        Colors.DarkRed,
-        [
-          { name: "Usuario", value: `${ban.user.tag} (${ban.user.id})`, inline: true },
-          { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
-          { name: "Razón", value: entry?.reason || "No especificada", inline: false }
-        ],
-        { thumbnail: ban.user.displayAvatarURL?.() }
-      );
-    } catch (err) {
-      console.error("Error audit logs ban:", err);
-    }
-  });
-
-  client.on("guildBanRemove", async (ban) => {
-    try {
-      const audit = await ban.guild.fetchAuditLogs({ type: 23, limit: 1 }); // MEMBER_BAN_REMOVE
-      const entry = audit.entries.first();
-      sendLog(
-        "✅ Usuario desbaneado",
-        `Un usuario fue desbaneado del servidor.`,
-        Colors.Green,
-        [
-          { name: "Usuario", value: `${ban.user.tag} (${ban.user.id})`, inline: true },
-          { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
-          { name: "Razón", value: entry?.reason || "No especificada", inline: false }
-        ],
-        { thumbnail: ban.user.displayAvatarURL?.() }
-      );
-    } catch (err) {
-      console.error("Error audit logs unban:", err);
-    }
-  });
-
-  // -------------------------------
-  // Roles y nick / username / avatar
-  // -------------------------------
   client.on("guildMemberUpdate", async (oldMember, newMember) => {
-    try {
-      const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
-      const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
-
-      if (addedRoles.size || removedRoles.size) {
-        const audit = await newMember.guild.fetchAuditLogs({ type: 25, limit: 1 }); // MEMBER_ROLE_UPDATE
-        const entry = audit.entries.first();
-        if (entry && entry.target.id === newMember.id && Date.now() - entry.createdTimestamp < 5000) {
-          sendLog(
-            "🛠️ Roles modificados",
-            `Se han modificado los roles de un usuario.`,
-            Colors.Green,
-            [
-              { name: "Usuario", value: newMember.user.tag, inline: true },
-              { name: "Roles añadidos", value: addedRoles.size ? addedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
-              { name: "Roles removidos", value: removedRoles.size ? removedRoles.map(r => r.name).join(", ") : "Ninguno", inline: true },
-              { name: "Ejecutor", value: entry.executor?.tag || "Desconocido", inline: true },
-              { name: "Razón", value: entry.reason || "No especificada", inline: false }
-            ],
-            { thumbnail: newMember.user.displayAvatarURL?.() }
-          );
-        }
-      }
-
-      if (oldMember.nickname !== newMember.nickname) {
-        sendLog(
-          "✏️ Nick cambiado",
-          `Un usuario cambió su apodo.`,
-          Colors.Orange,
-          [
-            { name: "Usuario", value: newMember.user.tag, inline: true },
-            { name: "Antes", value: oldMember.nickname || "(sin nick)", inline: true },
-            { name: "Después", value: newMember.nickname || "(sin nick)", inline: true }
-          ],
-          { thumbnail: newMember.user.displayAvatarURL?.() }
-        );
-      }
-
-      if (oldMember.user.displayAvatarURL() !== newMember.user.displayAvatarURL()) {
-        sendLog(
-          "🖼️ Avatar de usuario cambiado",
-          `Un usuario cambió su avatar.`,
-          Colors.Orange,
-          [
-            { name: "Usuario", value: newMember.user.tag, inline: true },
-            { name: "Avatar anterior", value: `[Ver anterior](${oldMember.user.displayAvatarURL()})`, inline: true },
-            { name: "Avatar nuevo", value: `[Ver nuevo](${newMember.user.displayAvatarURL()})`, inline: true }
-          ],
-          { thumbnail: newMember.user.displayAvatarURL?.() }
-        );
-      }
-    } catch (err) {
-      console.error("❌ Error guildMemberUpdate:", err);
-    }
-  });
-  
-// -------------------------------
-// Creación de rol
-// -------------------------------
-client.on("roleCreate", async (role) => {
-  try {
-    const audit = await role.guild.fetchAuditLogs({ type: 29, limit: 1 }); // ROLE_CREATE
-    const entry = audit.entries.first();
-    sendLog(
-      "🆕 Nuevo rol creado",
-      `Se ha creado un nuevo rol en el servidor.`,
-      Colors.Green,
-      [
-        { name: "Rol", value: `${role.name} (<@&${role.id}>)`, inline: true },
-        { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
-        { name: "Permisos", value: role.permissions.toArray().join(", "), inline: false },
-        { name: "Razón", value: entry?.reason || "No especificada", inline: false }
-      ]
-    );
-  } catch (err) {
-    console.error("❌ Error roleCreate:", err);
-  }
-});
-
-  // -------------------------------
-// Eliminación de rol
-// -------------------------------
-client.on("roleDelete", async (role) => {
-  try {
-    const audit = await role.guild.fetchAuditLogs({ type: 31, limit: 1 }); // ROLE_DELETE
-    const entry = audit.entries.first();
-    sendLog(
-      "❌ Rol eliminado",
-      `Un rol fue eliminado del servidor.`,
-      Colors.Red,
-      [
-        { name: "Rol", value: role.name, inline: true },
-        { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
-        { name: "Permisos", value: role.permissions.toArray().join(", "), inline: false },
-        { name: "Razón", value: entry?.reason || "No especificada", inline: false }
-      ]
-    );
-  } catch (err) {
-    console.error("❌ Error roleDelete:", err);
-  }
-});
-  
-
-// -------------------------------
-// Permisos de rol modificados
-// -------------------------------
-client.on("roleUpdate", async (oldRole, newRole) => {
-  try {
-    if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
-      const audit = await newRole.guild.fetchAuditLogs({ type: 30, limit: 1 }); // ROLE_UPDATE
-      const entry = audit.entries.first();
+    if (oldMember.nickname !== newMember.nickname) {
       sendLog(
-        "🔧 Permisos de rol modificados",
-        "Se han modificado los permisos de un rol.",
+        "✏️ Nick cambiado",
+        `Un usuario cambió su apodo.`,
         Colors.Orange,
         [
-          { name: "Rol", value: `${newRole.name} (<@&${newRole.id}>)`, inline: true },
-          { name: "Ejecutor", value: entry?.executor?.tag || "Desconocido", inline: true },
-          { name: "Antes", value: oldRole.permissions.toArray().join(", "), inline: false },
-          { name: "Después", value: newRole.permissions.toArray().join(", "), inline: false },
-          { name: "Razón", value: entry?.reason || "No especificada", inline: false }
-        ]
+          { name: "Usuario", value: newMember.user.tag, inline: true },
+          { name: "Antes", value: oldMember.nickname || "(sin nick)", inline: true },
+          { name: "Después", value: newMember.nickname || "(sin nick)", inline: true }
+        ],
+        { thumbnail: newMember.user.displayAvatarURL?.() }
       );
     }
-  } catch (err) {
-    console.error("❌ Error roleUpdate:", err);
-  }
-});
 
-
-  // -------------------------------
-  // Cambios de icono del servidor
-  // -------------------------------
-  client.on("guildUpdate", async (oldGuild, newGuild) => {
-    try {
-      if (oldGuild.iconURL() !== newGuild.iconURL()) {
-        sendLog(
-          "🖼️ Icono del servidor cambiado",
-          `El icono del servidor ha sido actualizado.`,
-          Colors.Orange,
-          [
-            { name: "Servidor", value: newGuild.name, inline: true }
-          ],
-          { thumbnail: newGuild.iconURL?.() }
-        );
-      }
-    } catch (err) {
-      console.error("❌ Error guildUpdate:", err);
+    if (oldMember.user.username !== newMember.user.username) {
+      sendLog(
+        "✏️ Nombre de usuario cambiado",
+        `Un usuario cambió su nombre de Discord.`,
+        Colors.Orange,
+        [
+          { name: "Usuario", value: newMember.user.tag, inline: true },
+          { name: "Antes", value: oldMember.user.username, inline: true },
+          { name: "Después", value: newMember.user.username, inline: true }
+        ],
+        { thumbnail: newMember.user.displayAvatarURL?.() }
+      );
     }
-  });
 
-  // -------------------------------
-  // Eventos adicionales
-  // -------------------------------
-  client.on("voiceStateUpdate", (oldState, newState) => {
-    logVoiceStateUpdate(oldState, newState);
-  });
-
-  client.on("inviteCreate", (invite) => {
-    logInviteCreate(invite);
-  });
-
-  client.on("guildMemberUpdate", (oldMember, newMember) => {
     if (oldMember.user.displayAvatarURL() !== newMember.user.displayAvatarURL()) {
-      logAvatarUpdate(newMember);
+      sendLog(
+        "🖼️ Avatar cambiado",
+        `Un usuario cambió su avatar.`,
+        Colors.Orange,
+        [
+          { name: "Usuario", value: newMember.user.tag, inline: true },
+          { name: "Avatar anterior", value: `[Ver anterior](${oldMember.user.displayAvatarURL()})`, inline: true },
+          { name: "Avatar nuevo", value: `[Ver nuevo](${newMember.user.displayAvatarURL()})`, inline: true }
+        ],
+        { thumbnail: newMember.user.displayAvatarURL?.() }
+      );
     }
   });
-}
 
-function logVoiceStateUpdate(oldState, newState) {
-  if (!oldState.channel && newState.channel) {
-    sendLogMessage(`🔊 **${newState.member.user.tag}** ha entrado al canal de voz **${newState.channel.name}**.`);
-  } else if (oldState.channel && !newState.channel) {
-    sendLogMessage(`🔇 **${oldState.member.user.tag}** ha salido del canal de voz **${oldState.channel.name}**.`);
-  }
-}
+  client.on("voiceStateUpdate", async (oldState, newState) => {
+    if (!oldState.channel && newState.channel) {
+      sendLog(
+        "🔊 Usuario se unió a un canal de voz",
+        `${newState.member.user.tag} se unió a <#${newState.channel.id}>`,
+        Colors.Green,
+        [
+          { name: "Usuario", value: `${newState.member.user.tag} (${newState.member.id})`, inline: true },
+          { name: "Canal", value: `<#${newState.channel.id}>`, inline: true }
+        ],
+        { thumbnail: newState.member.user.displayAvatarURL?.() }
+      );
+    }
 
-function logInviteCreate(invite) {
-  sendLogMessage(`📨 **${invite.inviter.tag}** ha creado una invitación para el canal **${invite.channel.name}** con código **${invite.code}**.`);
-}
+    if (oldState.channel && !newState.channel) {
+      sendLog(
+        "🔈 Usuario salió de un canal de voz",
+        `${oldState.member.user.tag} salió de <#${oldState.channel.id}>`,
+        Colors.Orange,
+        [
+          { name: "Usuario", value: `${oldState.member.user.tag} (${oldState.member.id})`, inline: true },
+          { name: "Canal", value: `<#${oldState.channel.id}>`, inline: true }
+        ],
+        { thumbnail: oldState.member.user.displayAvatarURL?.() }
+      );
+    }
+  });
 
-function logAvatarUpdate(member) {
-  sendLogMessage(`🖼️ **${member.user.tag}** ha actualizado su avatar.`);
+  client.on("inviteCreate", async (invite) => {
+    sendLog(
+      "📨 Invitación creada",
+      `Se creó una invitación para el canal <#${invite.channel.id}> con código ${invite.code}.`,
+      Colors.Blue,
+      [
+        { name: "Invitador", value: invite.inviter.tag, inline: true },
+        { name: "Canal", value: `<#${invite.channel.id}>`, inline: true },
+        { name: "Código", value: invite.code, inline: true }
+      ]
+    );
+  });
+
+  client.on("guildBanAdd", async (ban) => {
+    sendLog(
+      "⛔ Usuario baneado",
+      `Un usuario fue baneado del servidor.`,
+      Colors.DarkRed,
+      [
+        { name: "Usuario", value: `${ban.user.tag} (${ban.user.id})`, inline: true }
+      ],
+      { thumbnail: ban.user.displayAvatarURL?.() }
+    );
+  });
+
+  client.on("guildMemberRemove", async (member) => {
+    const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 });
+    const entry = audit.entries.first();
+    if (entry && entry.target.id === member.id) {
+      sendLog(
+        "👢 Usuario expulsado",
+        `Un usuario fue expulsado del servidor.`,
+        Colors.Yellow,
+        [
+          { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true },
+          { name: "Ejecutor", value: entry.executor.tag, inline: true }
+        ],
+        { thumbnail: member.user.displayAvatarURL?.() }
+      );
+    }
+  });
+
+  // Agregar más eventos según sea necesario...
 }
