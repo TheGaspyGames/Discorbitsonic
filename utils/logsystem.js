@@ -166,5 +166,37 @@ export function setupServerLogs(client) {
     }
   });
 
+  client.on("messageDelete", async (message) => {
+    if (message.partial || message.author?.bot) return;
+    sendLog(
+      "🗑️ Mensaje eliminado",
+      `Un mensaje fue eliminado en el servidor.`,
+      Colors.Red,
+      [
+        { name: "Autor", value: message.author?.tag || "Desconocido", inline: true },
+        { name: "Canal", value: `<#${message.channel.id}>`, inline: true },
+        { name: "Contenido", value: message.content || "(sin contenido)", inline: false }
+      ],
+      { thumbnail: message.author?.displayAvatarURL?.() }
+    );
+  });
+
+  client.on("messageUpdate", async (oldMessage, newMessage) => {
+    if (oldMessage.partial || newMessage.partial || oldMessage.author?.bot) return;
+    if (oldMessage.content === newMessage.content) return;
+    sendLog(
+      "✏️ Mensaje editado",
+      `Un mensaje fue editado en el servidor.`,
+      Colors.Orange,
+      [
+        { name: "Autor", value: oldMessage.author.tag, inline: true },
+        { name: "Canal", value: `<#${oldMessage.channel.id}>`, inline: true },
+        { name: "Antes", value: oldMessage.content || "(sin contenido)", inline: false },
+        { name: "Después", value: newMessage.content || "(sin contenido)", inline: false }
+      ],
+      { thumbnail: oldMessage.author.displayAvatarURL?.() }
+    );
+  });
+
   // Agregar más eventos según sea necesario...
 }
