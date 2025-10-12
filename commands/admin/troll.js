@@ -41,55 +41,60 @@ async function execute(interaction) {
   const filter = i => i.customId === "troll_select" && i.user.id === OWNER_ID;
   const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
 
+  // Corrección de posibles errores en la lógica del comando troll
   collector.on("collect", async i => {
-    const selectedUserId = i.values[0];
-    const target = interaction.guild.members.cache.get(selectedUserId);
-
-    if (!target) {
-      await i.reply({ content: "❌ No se pudo obtener el usuario seleccionado.", ephemeral: true });
-      return;
-    }
-
-    // Motivos variados para el aviso troll
-    const motivos = [
-      "Mensajes enviados en horarios similares a otras cuentas",
-      "Coincidencia en el uso de emojis y frases específicas",
-      "Participación en los mismos canales de texto",
-      "Reacciones idénticas en mensajes recientes",
-      "Conexión desde ubicaciones geográficas similares",
-      "Patrón de actividad en eventos y sorteos",
-      "Frecuencia de mensajes muy parecida a otras cuentas",
-      "Uso de avatares o nombres similares",
-      "Respuestas rápidas a los mismos temas",
-      "Interacción frecuente con los mismos usuarios",
-      "Uso de bots o herramientas automatizadas",
-      "Mensajes eliminados rápidamente después de ser enviados",
-      "Participación en discusiones sensibles",
-      "Uso de lenguaje o jerga específica",
-      "Coincidencia en la configuración de perfiles",
-      "Frecuencia de conexión en horarios inusuales",
-      "Interacción con cuentas recientemente creadas",
-      "Participación en múltiples servidores con los mismos usuarios",
-      "Uso de enlaces o contenido sospechoso",
-      "Respuestas automáticas o predecibles"
-    ];
-
-    // Elegir 3 motivos al azar
-    const motivosElegidos = motivos.sort(() => 0.5 - Math.random()).slice(0, 3);
-    const randomNum = Math.floor(Math.random() * 6) + 1;
-
-    const embed = new EmbedBuilder()
-      .setTitle("🚨 Aviso de Seguridad Discord (IA)")
-      .setColor("Red")
-      .setDescription(
-        `Se ha detectado que tu cuenta presenta **patrones de comportamiento similares** a otras cuentas en el servidor.\n\n` +
-        `Posibles multicuentas detectadas: **${randomNum}**\n` +
-        `Motivos:\n- ${motivosElegidos.join("\n- ")}\n\n` +
-        `Este aviso fue generado automáticamente por un sistema de IA. Si crees que es un error, contacta a un moderador.`
-      )
-      .setFooter({ text: "Sistema de Moderación Automático - Discord AI" });
-
     try {
+      const selectedUserId = i.values[0];
+      const target = interaction.guild.members.cache.get(selectedUserId);
+
+      if (!target) {
+        await i.reply({ content: "❌ No se pudo obtener el usuario seleccionado.", ephemeral: true });
+        return;
+      }
+
+      // Motivos variados para el aviso troll
+      const motivos = [
+        "Mensajes enviados en horarios similares a otras cuentas",
+        "Coincidencia en el uso de emojis y frases específicas",
+        "Participación en los mismos canales de texto",
+        "Reacciones idénticas en mensajes recientes",
+        "Conexión desde ubicaciones geográficas similares",
+        "Patrón de actividad en eventos y sorteos",
+        "Frecuencia de mensajes muy parecida a otras cuentas",
+        "Uso de avatares o nombres similares",
+        "Respuestas rápidas a los mismos temas",
+        "Interacción frecuente con los mismos usuarios",
+        "Uso de bots o herramientas automatizadas",
+        "Mensajes eliminados rápidamente después de ser enviados",
+        "Participación en discusiones sensibles",
+        "Uso de lenguaje o jerga específica",
+        "Coincidencia en la configuración de perfiles",
+        "Frecuencia de conexión en horarios inusuales",
+        "Interacción con cuentas recientemente creadas",
+        "Participación en múltiples servidores con los mismos usuarios",
+        "Uso de enlaces o contenido sospechoso",
+        "Respuestas automáticas o predecibles"
+      ];
+
+      // Elegir 3 motivos al azar
+      const motivosElegidos = motivos.sort(() => 0.5 - Math.random()).slice(0, 3);
+      const randomNum = Math.floor(Math.random() * 6) + 1;
+
+      if (isNaN(randomNum) || randomNum <= 0) {
+        throw new Error("Número generado inválido para el aviso de seguridad.");
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle("🚨 Aviso de Seguridad Discord (IA)")
+        .setColor("Red")
+        .setDescription(
+          `Se ha detectado que tu cuenta presenta **patrones de comportamiento similares** a otras cuentas en el servidor.\n\n` +
+          `Posibles multicuentas detectadas: **${randomNum}**\n` +
+          `Motivos:\n- ${motivosElegidos.join("\n- ")}\n\n` +
+          `Este aviso fue generado automáticamente por un sistema de IA. Si crees que es un error, contacta a un moderador.`
+        )
+        .setFooter({ text: "Sistema de Moderación Automático - Discord AI" });
+
       await target.send({
         content: "🚨 **Aviso de Seguridad Discord (IA)** 🚨",
         embeds: [embed]
@@ -99,9 +104,9 @@ async function execute(interaction) {
         ephemeral: true
       });
     } catch (error) {
-      console.error("❌ Error al enviar el mensaje directo:", error);
+      console.error("❌ Error en la lógica del comando troll:", error);
       await i.reply({
-        content: `❌ No se pudo enviar el aviso al MD de <@${target.id}>. Puede que tenga los MD desactivados.`,
+        content: `❌ Ocurrió un error inesperado: ${error.message}`,
         ephemeral: true
       });
     }
