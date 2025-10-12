@@ -243,4 +243,33 @@ async function getServerMetrics(guild) {
   };
 }
 
+/**
+ * Envía métricas del servidor al canal de logs
+ */
+export async function sendServerMetrics(client, guild) {
+  try {
+    const metrics = await getServerMetrics(guild);
+
+    const embed = new EmbedBuilder()
+      .setTitle("📊 Métricas del Servidor")
+      .setColor(Colors.Blue)
+      .addFields(
+        { name: "Usuarios Totales", value: `${metrics.totalUsers}`, inline: true },
+        { name: "Roles Totales", value: `${metrics.totalRoles}`, inline: true },
+        { name: "Canales Totales", value: `${metrics.totalChannels}`, inline: true }
+      )
+      .setTimestamp();
+
+    const logChannelId = configManager.get('LOG_CHANNEL_ID');
+    if (logChannelId) {
+      const logChannel = client.channels.cache.get(logChannelId);
+      if (logChannel) {
+        await logChannel.send({ embeds: [embed] });
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error al enviar métricas del servidor:", error);
+  }
+}
+
 export { getServerMetrics };
