@@ -41,15 +41,34 @@ export function setupServerLogs(client) {
   });
 
   client.on("guildMemberRemove", async (member) => {
-    sendLog(
-      "🚪 Usuario salió del servidor",
-      `${member.user.tag} ha salido del servidor.`,
-      Colors.DarkGrey,
-      [
-        { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
-      ],
-      { thumbnail: member.user.displayAvatarURL?.() }
-    );
+    try {
+      const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 });
+      const entry = audit.entries.first();
+      if (entry && entry.target.id === member.id) {
+        sendLog(
+          "👢 Usuario expulsado",
+          `Un usuario fue expulsado del servidor.`,
+          Colors.Yellow,
+          [
+            { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true },
+            { name: "Ejecutor", value: entry.executor.tag, inline: true }
+          ],
+          { thumbnail: member.user.displayAvatarURL?.() }
+        );
+      } else {
+        sendLog(
+          "🚪 Usuario salió del servidor",
+          `${member.user.tag} ha salido del servidor.`,
+          Colors.DarkGrey,
+          [
+            { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true }
+          ],
+          { thumbnail: member.user.displayAvatarURL?.() }
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error en guildMemberRemove:", error);
+    }
   });
 
   client.on("guildMemberUpdate", async (oldMember, newMember) => {
@@ -155,23 +174,6 @@ export function setupServerLogs(client) {
       ],
       { thumbnail: ban.user.displayAvatarURL?.() }
     );
-  });
-
-  client.on("guildMemberRemove", async (member) => {
-    const audit = await member.guild.fetchAuditLogs({ type: 20, limit: 1 });
-    const entry = audit.entries.first();
-    if (entry && entry.target.id === member.id) {
-      sendLog(
-        "👢 Usuario expulsado",
-        `Un usuario fue expulsado del servidor.`,
-        Colors.Yellow,
-        [
-          { name: "Usuario", value: `${member.user.tag} (${member.id})`, inline: true },
-          { name: "Ejecutor", value: entry.executor.tag, inline: true }
-        ],
-        { thumbnail: member.user.displayAvatarURL?.() }
-      );
-    }
   });
 
   client.on("messageDelete", async (message) => {

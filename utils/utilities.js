@@ -9,6 +9,7 @@ import { EmbedBuilder, Colors } from "discord.js";
 import config from "/data/data/com.termux/files/home/discorbitsonic/config.json" with { type: "json" };
 import { configManager } from "./configManager.js";
 import pm2 from "pm2";
+import pmx from "pmx";
 
 
 /**
@@ -270,6 +271,43 @@ export async function sendServerMetrics(client, guild) {
   } catch (error) {
     console.error("❌ Error al enviar métricas del servidor:", error);
   }
+}
+
+/**
+ * Configura métricas personalizadas para PM2
+ */
+export function setupServerMetrics(client) {
+  const metrics = pmx.probe();
+
+  // Métrica: Usuarios totales
+  const totalUsersMetric = metrics.metric({
+    name: "Usuarios totales",
+    value: () => client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0)
+  });
+
+  // Métrica: Roles totales
+  const totalRolesMetric = metrics.metric({
+    name: "Roles totales",
+    value: () => client.guilds.cache.reduce((acc, guild) => acc + guild.roles.cache.size, 0)
+  });
+
+  // Métrica: Staffs con rol específico
+  const staffRoleId = "1177722501275594842";
+  const totalStaffMetric = metrics.metric({
+    name: "Staffs (Rol específico)",
+    value: () => client.guilds.cache.reduce((acc, guild) => {
+      const members = guild.members.cache.filter(member => member.roles.cache.has(staffRoleId));
+      return acc + members.size;
+    }, 0)
+  });
+
+  // Métrica: Canales totales
+  const totalChannelsMetric = metrics.metric({
+    name: "Canales totales",
+    value: () => client.guilds.cache.reduce((acc, guild) => acc + guild.channels.cache.size, 0)
+  });
+
+  console.log("✅ Métricas personalizadas para PM2 configuradas.");
 }
 
 export { getServerMetrics };
