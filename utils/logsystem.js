@@ -1,4 +1,3 @@
-@@ -1,359 +1,359 @@
 // utils/logsystem.js
 import { EmbedBuilder, Colors, WebhookClient } from "discord.js";
 import dotenv from "dotenv";
@@ -54,14 +53,10 @@ export function setupServerLogs(client) {
       .setColor(color)
       .setTimestamp()
       .setFooter({
-        text: "Discorbitsonic Premium Logs",
-        iconURL: "https://cdn.discordapp.com/icons/1141108860018325635/7e2e2c2e2b2e2b2e2b2e2b2e2b2e2b2e.webp" // Cambia por tu icono premium
         text: "Premium Logs 500€",
         iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif" // Cambia por tu icono premium
       })
       .setAuthor({
-        name: "Sistema de Seguridad Avanzado",
-        iconURL: "https://cdn.discordapp.com/emojis/1161709152784171068.webp?size=96&quality=lossless"
         name: "LOGS PREMIUM 500€",
         iconURL: "https://media.tenor.com/eWbZcoL6GokAAAAj/teto-teto-kasane.gif"
       });
@@ -266,7 +261,7 @@ export function setupServerLogs(client) {
       console.error("❌ Error guildMemberUpdate:", err);
     }
   });
-
+  
 // -------------------------------
 // Creación de rol
 // -------------------------------
@@ -312,7 +307,7 @@ client.on("roleDelete", async (role) => {
     console.error("❌ Error roleDelete:", err);
   }
 });
-
+  
 
 // -------------------------------
 // Permisos de rol modificados
@@ -361,4 +356,4 @@ client.on("roleUpdate", async (oldRole, newRole) => {
       console.error("❌ Error guildUpdate:", err);
     }
   });
-        }
+}
