@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Status Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+    }
+    .status {
+      margin-top: 20px;
+    }
+    .admin {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Bot Status</h1>
+    <div class="status">
+      <p>Status: <span id="status">ONLINE</span></p>
+      <p>Uptime: <span id="uptime">Loading...</span></p>
+      <p>Memory Usage: <span id="memory">Loading...</span></p>
+    </div>
+    <div class="admin">
+      <h2>Admin Panel</h2>
+      <label for="new-status">Update Status:</label>
+      <select id="new-status">
+        <option value="ONLINE">ONLINE</option>
+        <option value="OFFLINE">OFFLINE</option>
+        <option value="MAINTENANCE">MAINTENANCE</option>
+      </select>
+      <button id="update-status">Update</button>
+
+      <h2>Generate Code</h2>
+      <label for="username">Username:</label>
+      <input type="text" id="username" placeholder="Enter username">
+      <button id="generate-code">Generate Code</button>
+      <p id="generated-code"></p>
+
+      <h2>Validate Code</h2>
+      <label for="validate-username">Username:</label>
+      <input type="text" id="validate-username" placeholder="Enter username">
+      <label for="validate-code">Code:</label>
+      <input type="text" id="validate-code" placeholder="Enter code">
+      <button id="validate">Validate Code</button>
+      <p id="validation-result"></p>
+
+      <h2>Add User</h2>
+      <label for="add-username">Username:</label>
+      <input type="text" id="add-username" placeholder="Enter username">
+      <label for="add-permissions">Permissions:</label>
+      <input type="text" id="add-permissions" placeholder="Enter permissions">
+      <button id="add-user">Add User</button>
+      <p id="add-result"></p>
+
+      <h2>Update Permissions</h2>
+      <label for="update-username">Username:</label>
+      <input type="text" id="update-username" placeholder="Enter username">
+      <label for="update-permissions">Permissions:</label>
+      <input type="text" id="update-permissions" placeholder="Enter new permissions">
+      <button id="update-permissions-btn">Update Permissions</button>
+      <p id="update-result"></p>
+    </div>
+  </div>
+  <script>
+    async function fetchStatus() {
+      try {
+        const response = await fetch('/status');
+        const data = await response.json();
+
+        // Update uptime
+        const uptimeMinutes = Math.floor(data.uptime / 60);
+        document.getElementById('uptime').textContent = `${uptimeMinutes} minutes`;
+
+        // Update memory usage from PM2
+        const memoryMB = (data.memoryUsage.rss / 1024 / 1024).toFixed(2);
+        document.getElementById('memory').textContent = `${memoryMB} MB`;
+
+        // Update status
+        document.getElementById('status').textContent = data.status;
+      } catch (err) {
+        console.error('Failed to fetch status:', err);
+        document.getElementById('status').textContent = 'OFFLINE';
+      }
+    }
+
+    async function updateStatus() {
+      const newStatus = document.getElementById('new-status').value;
+      try {
+        const response = await fetch('/admin/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await response.json();
+        if (data.status) {
+          document.getElementById('status').textContent = data.status;
+        }
+      } catch (err) {
+        console.error('Failed to update status:', err);
+      }
+    }
+
+    async function generateCode() {
+      const username = document.getElementById('username').value;
+      try {
+        const response = await fetch('/admin/generate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        const data = await response.json();
+        document.getElementById('generated-code').textContent = `Generated Code: ${data.code}`;
+      } catch (err) {
+        console.error('Failed to generate code:', err);
+      }
+    }
+
+    async function validateCode() {
+      const username = document.getElementById('validate-username').value;
+      const code = document.getElementById('validate-code').value;
+      try {
+        const response = await fetch('/admin/validate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, code })
+        });
+        const data = await response.json();
+        document.getElementById('validation-result').textContent = `Validation Result: ${data.message}`;
+      } catch (err) {
+        console.error('Failed to validate code:', err);
+        document.getElementById('validation-result').textContent = 'Validation Failed';
+      }
+    }
+
+    async function addUser() {
+      const username = document.getElementById('add-username').value;
+      const permissions = document.getElementById('add-permissions').value;
+      try {
+        const response = await fetch('/admin/add-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, permissions })
+        });
+        const data = await response.json();
+        document.getElementById('add-result').textContent = `User added: ${data.username}, Code: ${data.code}`;
+      } catch (err) {
+        console.error('Failed to add user:', err);
+        document.getElementById('add-result').textContent = 'Failed to add user';
+      }
+    }
+
+    async function updatePermissions() {
+      const username = document.getElementById('update-username').value;
+      const permissions = document.getElementById('update-permissions').value;
+      try {
+        const response = await fetch('/admin/update-permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, permissions })
+        });
+        const data = await response.json();
+        document.getElementById('update-result').textContent = `Permissions updated for: ${data.username}`;
+      } catch (err) {
+        console.error('Failed to update permissions:', err);
+        document.getElementById('update-result').textContent = 'Failed to update permissions';
+      }
+    }
+
+    document.getElementById('update-status').addEventListener('click', updateStatus);
+    document.getElementById('generate-code').addEventListener('click', generateCode);
+    document.getElementById('validate').addEventListener('click', validateCode);
+    document.getElementById('add-user').addEventListener('click', addUser);
+    document.getElementById('update-permissions-btn').addEventListener('click', updatePermissions);
+
+    // Fetch status every 10 seconds
+    setInterval(fetchStatus, 10000);
+    fetchStatus();
+  </script>
+</body>
+</html>
